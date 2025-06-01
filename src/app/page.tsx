@@ -1,36 +1,52 @@
 "use client";
 
-import { useState } from "react";
-import { transformers } from "@/data/transformers";
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  Tooltip,
-  ResponsiveContainer,
-} from "recharts";
+import { useState, useEffect } from "react";
+import { transformers as initialData } from "@/data/transformers";
+import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 
 const overheatThreshold = 100;
 
 export default function Home() {
-  const [selectedId, setSelectedId] = useState(transformers[0].id);
+  const [transformersData, setTransformersData] = useState(initialData);
+  const [selectedId, setSelectedId] = useState(initialData[0].id);
   const [onlyShowHot, setOnlyShowHot] = useState(false);
 
-  const selectedTransformer = transformers.find((t) => t.id === selectedId)!;
+  const selectedTransformer = transformersData.find((t) => t.id === selectedId)!;
 
   const isOverheating = (temps: { tempC: number }[]) =>
     temps.some((p) => p.tempC > overheatThreshold);
 
   const filteredTransformers = onlyShowHot
-    ? transformers.filter((t) => isOverheating(t.temperatureHistory))
-    : transformers;
+    ? transformersData.filter((t) => isOverheating(t.temperatureHistory))
+    : transformersData;
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setTransformersData((prev) =>
+        prev.map((t) => {
+          const last = t.temperatureHistory[t.temperatureHistory.length - 1];
+          const nextTemp = Math.round(
+            last.tempC + (Math.random() * 6 - 3) // add -3 to +3°C
+          );
+          const next = {
+            timestamp: new Date().toISOString(),
+            tempC: nextTemp,
+          };
+
+          return {
+            ...t,
+            temperatureHistory: [...t.temperatureHistory.slice(-9), next], // keep last 10 readings
+          };
+        })
+      );
+    }, 5000);
+
+    return () => clearInterval(interval);
+  }, []);
 
   return (
     <main className="min-h-screen p-6 max-w-5xl mx-auto">
-      <h1 className="text-2xl font-bold mb-6 text-grey-200">
-        Transformer Dashboard
-      </h1>
+      <h1 className="text-2xl font-bold mb-6 text-grey-200">Transformer Dashboard</h1>
 
       <div className="mb-4">
         <label className="inline-flex items-center gap-2">
@@ -40,9 +56,7 @@ export default function Home() {
             onChange={(e) => setOnlyShowHot(e.target.checked)}
             className="form-checkbox h-4 w-4 text-blue-600"
           />
-          <span className="text-sm text-gray-700">
-            Show only overheating transformers
-          </span>
+          <span className="text-sm text-gray-700">Show only overheating transformers</span>
         </label>
       </div>
 
@@ -70,19 +84,16 @@ export default function Home() {
               return (
                 <tr
                   key={t.id}
-                  className={`cursor-pointer hover:bg-blue-50 ${
-                    isSelected ? "bg-blue-100" : ""
-                  }`}
+                  className={`cursor-pointer hover:bg-blue-50 ${isSelected ? "bg-blue-100 border-l-4 border-blue-600" : ""} transition`}
                   onClick={() => setSelectedId(t.id)}
                 >
                   <td className="p-2 font-mono">{t.id}</td>
                   <td className="p-2">{t.type}</td>
                   <td className="p-2">{t.kVA}</td>
                   <td className="p-2">{t.manufactureDate}</td>
+                  <td className={`p-2 font-mono ${isSelected ? "font-bold" : ""}`}>{t.id}</td>
                   <td
-                    className={`p-2 font-semibold ${
-                      overheat ? "text-red-600" : "text-green-600"
-                    }`}
+                    className={`p-2 font-semibold ${overheat ? "text-red-600" : "text-green-600"}`}
                   >
                     {overheat ? "Overheating" : "Normal"}
                   </td>
@@ -104,9 +115,7 @@ export default function Home() {
               : "text-green-600"
           }
         >
-          {isOverheating(selectedTransformer.temperatureHistory)
-            ? "Overheating"
-            : "Normal"}
+          {isOverheating(selectedTransformer.temperatureHistory) ? "Overheating" : "Normal"}
         </span>
       </p>
 
@@ -115,14 +124,11 @@ export default function Home() {
           <XAxis dataKey="timestamp" />
           <YAxis domain={[60, 120]} />
           <Tooltip />
-          <Line
-            type="monotone"
-            dataKey="tempC"
-            stroke="#1D4ED8"
-            strokeWidth={2}
-          />
+          <Line type="monotone" dataKey="tempC" stroke="#1D4ED8" strokeWidth={2} />
         </LineChart>
       </ResponsiveContainer>
+
+      <p className="text-sm text-gray-500 mt-2">Last updated: {new Date().toLocaleTimeString()}</p>
     </main>
   );
 }
