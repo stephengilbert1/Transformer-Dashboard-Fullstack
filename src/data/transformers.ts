@@ -1,67 +1,18 @@
-export const transformers = [
-  {
-    id: "TX-001",
-    type: "1-ph pole",
-    kVA: 25,
-    manufactureDate: "2017-08-10",
-    temperatureHistory: [
-      { timestamp: "2024-06-01T10:00:00Z", tempC: 67 },
-      { timestamp: "2024-06-01T11:00:00Z", tempC: 72 },
-      { timestamp: "2024-06-01T12:00:00Z", tempC: 81 },
-      { timestamp: "2024-06-01T13:00:00Z", tempC: 95 },
-      { timestamp: "2024-06-01T14:00:00Z", tempC: 102 },
-    ],
-  },
-  {
-    id: "TX-002",
-    type: "3-ph pad",
-    kVA: 100,
-    manufactureDate: "2015-03-15",
-    temperatureHistory: [
-      { timestamp: "2024-06-01T10:00:00Z", tempC: 65 },
-      { timestamp: "2024-06-01T11:00:00Z", tempC: 66 },
-      { timestamp: "2024-06-01T12:00:00Z", tempC: 67 },
-      { timestamp: "2024-06-01T13:00:00Z", tempC: 69 },
-      { timestamp: "2024-06-01T14:00:00Z", tempC: 70 },
-    ],
-  },
-  {
-    id: "TX-003",
-    type: "1-ph pad",
-    kVA: 50,
-    manufactureDate: "2020-02-01",
-    temperatureHistory: [
-      { timestamp: "2024-06-01T10:00:00Z", tempC: 85 },
-      { timestamp: "2024-06-01T11:00:00Z", tempC: 91 },
-      { timestamp: "2024-06-01T12:00:00Z", tempC: 96 },
-      { timestamp: "2024-06-01T13:00:00Z", tempC: 98 },
-      { timestamp: "2024-06-01T14:00:00Z", tempC: 101 },
-    ],
-  },
-  {
-    id: "TX-004",
-    type: "3-ph pole",
-    kVA: 75,
-    manufactureDate: "2019-06-20",
-    temperatureHistory: [
-      { timestamp: "2024-06-01T10:00:00Z", tempC: 78 },
-      { timestamp: "2024-06-01T11:00:00Z", tempC: 79 },
-      { timestamp: "2024-06-01T12:00:00Z", tempC: 80 },
-      { timestamp: "2024-06-01T13:00:00Z", tempC: 81 },
-      { timestamp: "2024-06-01T14:00:00Z", tempC: 83 },
-    ],
-  },
-  {
-    id: "TX-005",
-    type: "3-ph pad",
-    kVA: 150,
-    manufactureDate: "2023-10-11",
-    temperatureHistory: [
-      { timestamp: "2024-06-01T10:00:00Z", tempC: 104 },
-      { timestamp: "2024-06-01T11:00:00Z", tempC: 106 },
-      { timestamp: "2024-06-01T12:00:00Z", tempC: 108 },
-      { timestamp: "2024-06-01T13:00:00Z", tempC: 109 },
-      { timestamp: "2024-06-01T14:00:00Z", tempC: 110 },
-    ],
-  },
-];
+export const generateMockTransformer = (id: number) => {
+  const now = Date.now();
+  const history = Array.from({ length: 10 }).map((_, i) => ({
+    timestamp: new Date(now - (9 - i) * 60000).toISOString(),
+    tempC: Math.round(60 + Math.random() * 60), // 60–120°C
+  }));
+
+  return {
+    id: `XFMR-${id.toString().padStart(4, "0")}`,
+    type: ["1-ph pole", "3-ph pole", "1-ph pad", "3-ph pad"][id % 4],
+    kVA: [25, 50, 75, 100, 167, 250][id % 6],
+    mfgDate: `20${10 + (id % 15)}-01-01`,
+    temperatureHistory: history,
+  };
+};
+
+export const generateMockTransformers = (count: number) =>
+  Array.from({ length: count }, (_, i) => generateMockTransformer(i + 1));

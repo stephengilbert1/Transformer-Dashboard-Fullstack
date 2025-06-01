@@ -1,17 +1,25 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { transformers as initialData } from "@/data/transformers";
+import { generateMockTransformers } from "@/data/transformers";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 
-const overheatThreshold = 100;
-
 export default function Home() {
-  const [transformersData, setTransformersData] = useState(initialData);
-  const [selectedId, setSelectedId] = useState(initialData[0].id);
-  const [onlyShowHot, setOnlyShowHot] = useState(false);
+  const overheatThreshold = 100;
 
-  const selectedTransformer = transformersData.find((t) => t.id === selectedId)!;
+  const [transformersData, setTransformersData] = useState<any[]>([]);
+  const [selectedId, setSelectedId] = useState<string>("");
+  const [onlyShowHot, setOnlyShowHot] = useState(false);
+  const [hoveredId, setHoveredId] = useState<string | null>(null);
+
+  // Generate mock transformers on first load
+  useEffect(() => {
+    const initialData = generateMockTransformers(1000);
+    setTransformersData(initialData);
+    setSelectedId(initialData[0].id); // set first ID once data is ready
+  }, []);
+
+  const selectedTransformer = transformersData.find((t) => t.id === selectedId);
 
   const isOverheating = (temps: { tempC: number }[]) =>
     temps.some((p) => p.tempC > overheatThreshold);
@@ -20,6 +28,7 @@ export default function Home() {
     ? transformersData.filter((t) => isOverheating(t.temperatureHistory))
     : transformersData;
 
+  //Live updates
   useEffect(() => {
     const interval = setInterval(() => {
       setTransformersData((prev) =>
@@ -60,75 +69,118 @@ export default function Home() {
         </label>
       </div>
 
-      <table className="w-full table-auto border mb-10">
-        <thead className="bg-gray-100 text-left text-sm text-gray-600">
-          <tr>
-            <th className="p-2">ID</th>
-            <th className="p-2">Type</th>
-            <th className="p-2">kVA</th>
-            <th className="p-2">Mfg Date</th>
-            <th className="p-2">Status</th>
-          </tr>
-        </thead>
-        <tbody>
-          {[...filteredTransformers]
-            .sort(
-              (a, b) =>
-                Math.max(...b.temperatureHistory.map((x) => x.tempC)) -
-                Math.max(...a.temperatureHistory.map((x) => x.tempC))
-            )
-            .map((t) => {
-              const overheat = isOverheating(t.temperatureHistory);
-              const isSelected = selectedId === t.id;
+      <div className="max-h-[400px] overflow-y-auto border rounded shadow-sm">
+        <table className="min-w-full divide-y divide-gray-200 text-sm">
+          <thead className="sticky top-0 bg-white z-10">
+            <tr>
+              <th className="p-2">ID</th>
+              <th className="p-2">Type</th>
+              <th className="p-2">kVA</th>
+              <th className="p-2">Mfg Date</th>
+              <th className="p-2">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {[...filteredTransformers]
+              .sort(
+                (a, b) =>
+                  Math.max(...b.temperatureHistory.map((x) => x.tempC)) -
+                  Math.max(...a.temperatureHistory.map((x) => x.tempC))
+              )
+              .map((t) => {
+                const overheat = isOverheating(t.temperatureHistory);
+                const isSelected = selectedId === t.id;
 
-              return (
-                <tr
-                  key={t.id}
-                  className={`cursor-pointer hover:bg-blue-50 ${isSelected ? "bg-blue-100 border-l-4 border-blue-600" : ""} transition`}
-                  onClick={() => setSelectedId(t.id)}
-                >
-                  <td className="p-2 font-mono">{t.id}</td>
-                  <td className="p-2">{t.type}</td>
-                  <td className="p-2">{t.kVA}</td>
-                  <td className="p-2">{t.manufactureDate}</td>
-                  <td className={`p-2 font-mono ${isSelected ? "font-bold" : ""}`}>{t.id}</td>
-                  <td
-                    className={`p-2 font-semibold ${overheat ? "text-red-600" : "text-green-600"}`}
+                return (
+                  <tr
+                    key={t.id}
+                    onClick={() => setSelectedId(t.id)}
+                    onMouseEnter={() => setHoveredId(t.id)}
+                    onMouseLeave={() => setHoveredId(null)}
+                    className={`relative cursor-pointer hover:bg-blue-50 ${
+                      isSelected ? "bg-blue-100 border-l-4 border-blue-600" : ""
+                    }`}
                   >
-                    {overheat ? "Overheating" : "Normal"}
-                  </td>
-                </tr>
-              );
-            })}
-        </tbody>
-      </table>
+                    <td className={`p-2 font-mono ${isSelected ? "font-bold" : ""}`}>{t.id}</td>
+                    <td className="p-2">{t.type}</td>
+                    <td className="p-2">{t.kVA}</td>
+                    <td className="p-2">{t.mfgDate}</td>
+                    <td className="p-2">
+                      {Math.max(...t.temperatureHistory.map((x) => x.tempC)) > 100 ? (
+                        <span className="text-red-700 bg-red-100 px-2 py-1 rounded-full text-xs font-semibold">
+                          Overheating
+                        </span>
+                      ) : (
+                        <span className="text-green-700 bg-green-100 px-2 py-1 rounded-full text-xs font-semibold">
+                          Normal
+                        </span>
+                      )}
+                    </td>
+                    {/* spacer for tooltip */}
+                    <td className="relative w-[180px] p-2">
+                      {hoveredId === t.id && (
+                        <div className="absolute right-0 top-1/2 -translate-y-1/2 bg-gray-900 text-white text-xs p-2 rounded shadow-lg z-10 w-[180px]">
+                          <div>Latest: {t.temperatureHistory.at(-1)?.tempC}°C</div>
+                          <div>
+                            {new Date(
+                              t.temperatureHistory.at(-1)?.timestamp || ""
+                            ).toLocaleTimeString()}
+                          </div>
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+          </tbody>
+        </table>
+      </div>
 
-      <h2 className="text-xl font-semibold text-gray-800 mb-2">
-        {selectedTransformer.id} – Temperature History
-      </h2>
-      <p className="text-sm text-gray-500 mb-4">
-        Status:{" "}
-        <span
-          className={
-            isOverheating(selectedTransformer.temperatureHistory)
-              ? "text-red-600"
-              : "text-green-600"
-          }
-        >
-          {isOverheating(selectedTransformer.temperatureHistory) ? "Overheating" : "Normal"}
-        </span>
-      </p>
+      {selectedTransformer ? (
+        <>
+          <h2 className="text-xl font-semibold text-gray-800 mb-2">
+            {selectedTransformer.id} – Temperature History
+          </h2>
+          <p className="text-sm text-gray-500 mb-4">
+            Status:{" "}
+            <span
+              className={
+                isOverheating(selectedTransformer.temperatureHistory)
+                  ? "text-red-600"
+                  : "text-green-600"
+              }
+            >
+              {isOverheating(selectedTransformer.temperatureHistory) ? "Overheating" : "Normal"}
+            </span>
+          </p>
 
-      <ResponsiveContainer width="100%" height={300}>
-        <LineChart data={selectedTransformer.temperatureHistory}>
-          <XAxis dataKey="timestamp" />
-          <YAxis domain={[60, 120]} />
-          <Tooltip />
-          <Line type="monotone" dataKey="tempC" stroke="#1D4ED8" strokeWidth={2} />
-        </LineChart>
-      </ResponsiveContainer>
+          <ResponsiveContainer width="100%" height={300}>
+            <LineChart data={selectedTransformer.temperatureHistory}>
+              <XAxis
+                dataKey="timestamp"
+                tickFormatter={(value) =>
+                  new Date(value).toLocaleTimeString([], {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })
+                }
+                interval={3}
+                minTickGap={61}
+                tick={{ angle: -45, fontSize: 10 } as any}
+              />
+              <YAxis domain={[60, 120]} />
+              <Tooltip />
+              <Line type="monotone" dataKey="tempC" stroke="#1D4ED8" strokeWidth={2} />
+            </LineChart>
+          </ResponsiveContainer>
 
-      <p className="text-sm text-gray-500 mt-2">Last updated: {new Date().toLocaleTimeString()}</p>
+          <p className="text-sm text-gray-500 mt-2">
+            Last updated: {new Date().toLocaleTimeString()}
+          </p>
+        </>
+      ) : (
+        <p className="text-gray-500 mt-6">Loading transformer data...</p>
+      )}
     </main>
   );
 }
