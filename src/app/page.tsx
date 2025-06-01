@@ -3,11 +3,21 @@
 import { useState, useEffect } from "react";
 import { generateMockTransformers } from "@/data/transformers";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
+import type { TextProps } from "recharts";
 
 export default function Home() {
   const overheatThreshold = 100;
 
-  const [transformersData, setTransformersData] = useState<any[]>([]);
+  type Transformer = {
+    id: string;
+    type: string;
+    kVA: number;
+    mfgDate: string;
+    temperatureHistory: { timestamp: string; tempC: number }[];
+  };
+
+  const [transformersData, setTransformersData] = useState<Transformer[]>([]);
+
   const [selectedId, setSelectedId] = useState<string>("");
   const [onlyShowHot, setOnlyShowHot] = useState(false);
   const [hoveredId, setHoveredId] = useState<string | null>(null);
@@ -88,7 +98,7 @@ export default function Home() {
                   Math.max(...a.temperatureHistory.map((x) => x.tempC))
               )
               .map((t) => {
-                const overheat = isOverheating(t.temperatureHistory);
+                //const overheat = isOverheating(t.temperatureHistory);
                 const isSelected = selectedId === t.id;
 
                 return (
@@ -166,7 +176,7 @@ export default function Home() {
                 }
                 interval={3}
                 minTickGap={61}
-                tick={{ angle: -45, fontSize: 10 } as any}
+                tick={{ angle: -45, fontSize: 10 } as Partial<TextProps>}
               />
               <YAxis domain={[60, 120]} />
               <Tooltip />
