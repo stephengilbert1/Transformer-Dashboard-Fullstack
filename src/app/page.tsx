@@ -1,103 +1,128 @@
-import Image from "next/image";
+"use client";
+
+import { useState } from "react";
+import { transformers } from "@/data/transformers";
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+} from "recharts";
+
+const overheatThreshold = 100;
 
 export default function Home() {
-  return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="list-inside list-decimal text-sm/6 text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-[family-name:var(--font-geist-mono)] font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+  const [selectedId, setSelectedId] = useState(transformers[0].id);
+  const [onlyShowHot, setOnlyShowHot] = useState(false);
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
-        </div>
-      </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
+  const selectedTransformer = transformers.find((t) => t.id === selectedId)!;
+
+  const isOverheating = (temps: { tempC: number }[]) =>
+    temps.some((p) => p.tempC > overheatThreshold);
+
+  const filteredTransformers = onlyShowHot
+    ? transformers.filter((t) => isOverheating(t.temperatureHistory))
+    : transformers;
+
+  return (
+    <main className="min-h-screen p-6 max-w-5xl mx-auto">
+      <h1 className="text-2xl font-bold mb-6 text-grey-200">
+        Transformer Dashboard
+      </h1>
+
+      <div className="mb-4">
+        <label className="inline-flex items-center gap-2">
+          <input
+            type="checkbox"
+            checked={onlyShowHot}
+            onChange={(e) => setOnlyShowHot(e.target.checked)}
+            className="form-checkbox h-4 w-4 text-blue-600"
           />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
+          <span className="text-sm text-gray-700">
+            Show only overheating transformers
+          </span>
+        </label>
+      </div>
+
+      <table className="w-full table-auto border mb-10">
+        <thead className="bg-gray-100 text-left text-sm text-gray-600">
+          <tr>
+            <th className="p-2">ID</th>
+            <th className="p-2">Type</th>
+            <th className="p-2">kVA</th>
+            <th className="p-2">Mfg Date</th>
+            <th className="p-2">Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {[...filteredTransformers]
+            .sort(
+              (a, b) =>
+                Math.max(...b.temperatureHistory.map((x) => x.tempC)) -
+                Math.max(...a.temperatureHistory.map((x) => x.tempC))
+            )
+            .map((t) => {
+              const overheat = isOverheating(t.temperatureHistory);
+              const isSelected = selectedId === t.id;
+
+              return (
+                <tr
+                  key={t.id}
+                  className={`cursor-pointer hover:bg-blue-50 ${
+                    isSelected ? "bg-blue-100" : ""
+                  }`}
+                  onClick={() => setSelectedId(t.id)}
+                >
+                  <td className="p-2 font-mono">{t.id}</td>
+                  <td className="p-2">{t.type}</td>
+                  <td className="p-2">{t.kVA}</td>
+                  <td className="p-2">{t.manufactureDate}</td>
+                  <td
+                    className={`p-2 font-semibold ${
+                      overheat ? "text-red-600" : "text-green-600"
+                    }`}
+                  >
+                    {overheat ? "Overheating" : "Normal"}
+                  </td>
+                </tr>
+              );
+            })}
+        </tbody>
+      </table>
+
+      <h2 className="text-xl font-semibold text-gray-800 mb-2">
+        {selectedTransformer.id} – Temperature History
+      </h2>
+      <p className="text-sm text-gray-500 mb-4">
+        Status:{" "}
+        <span
+          className={
+            isOverheating(selectedTransformer.temperatureHistory)
+              ? "text-red-600"
+              : "text-green-600"
+          }
         >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
+          {isOverheating(selectedTransformer.temperatureHistory)
+            ? "Overheating"
+            : "Normal"}
+        </span>
+      </p>
+
+      <ResponsiveContainer width="100%" height={300}>
+        <LineChart data={selectedTransformer.temperatureHistory}>
+          <XAxis dataKey="timestamp" />
+          <YAxis domain={[60, 120]} />
+          <Tooltip />
+          <Line
+            type="monotone"
+            dataKey="tempC"
+            stroke="#1D4ED8"
+            strokeWidth={2}
           />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
-    </div>
+        </LineChart>
+      </ResponsiveContainer>
+    </main>
   );
 }
