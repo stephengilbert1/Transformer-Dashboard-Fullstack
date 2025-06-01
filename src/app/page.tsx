@@ -5,19 +5,18 @@ import { generateMockTransformers } from "@/data/transformers";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import type { TextProps } from "recharts";
 
+type Transformer = {
+  id: string;
+  type: string;
+  kVA: number;
+  mfgDate: string;
+  temperatureHistory: { timestamp: string; tempC: number }[];
+};
+
 export default function Home() {
   const overheatThreshold = 100;
 
-  type Transformer = {
-    id: string;
-    type: string;
-    kVA: number;
-    mfgDate: string;
-    temperatureHistory: { timestamp: string; tempC: number }[];
-  };
-
   const [transformersData, setTransformersData] = useState<Transformer[]>([]);
-
   const [selectedId, setSelectedId] = useState<string>("");
   const [onlyShowHot, setOnlyShowHot] = useState(false);
   const [hoveredId, setHoveredId] = useState<string | null>(null);
@@ -26,7 +25,9 @@ export default function Home() {
   useEffect(() => {
     const initialData = generateMockTransformers(1000);
     setTransformersData(initialData);
-    setSelectedId(initialData[0].id); // set first ID once data is ready
+    if (initialData.length > 0) {
+      setSelectedId(initialData[0].id);
+    } // set first ID once data is ready
   }, []);
 
   const selectedTransformer = transformersData.find((t) => t.id === selectedId);
