@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { generateMockTransformers } from "@/data/transformers";
+import { useState, useEffect, useMemo } from "react";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import type { TextProps } from "recharts";
+//import { generateMockTransformers } from "@/data/transformers";
 
-const OVERHEAT_THRESHOLD = 100;
+const OVERHEAT_THRESHOLD = 110;
 
 type Transformer = {
   id: string;
@@ -19,64 +19,74 @@ type SortableKey = "id" | "kVA" | "tempC" | "type" | "mfgDate" | "status";
 
 export default function Home() {
   const [sortKey, setSortKey] = useState<SortableKey | null>(null);
-
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
   const [transformersData, setTransformersData] = useState<Transformer[]>([]);
   const [selectedId, setSelectedId] = useState<string>("");
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedTransformer, setSelectedTransformer] = useState<Transformer | null>(null);
+
   const tickStyle: Partial<TextProps> = { angle: -45, fontSize: 10 };
-  // Initialize mock data once on mount
+
+  // Load initial transformer data from API
   useEffect(() => {
-    const initialData = generateMockTransformers(1000);
-    setTransformersData(initialData);
-    if (initialData.length) {
-      setSelectedId(initialData[0].id);
-    }
+    fetch("/api/transformers")
+      .then((res) => res.json())
+      .then((data) => {
+        setTransformersData(data);
+        if (data.length > 0) setSelectedTransformer(data[0]); // 👈 select Transformer 1
+      });
   }, []);
 
+  // Update selected transformer when ID changes
+  useEffect(() => {
+    if (!selectedId) return;
+    const xfmr = transformersData.find((t) => t.id === selectedId);
+    setSelectedTransformer(xfmr ?? null);
+  }, [selectedId, transformersData]);
+
+  // Toggle or change sort key and order
   const handleSort = (key: typeof sortKey) => {
     if (sortKey === key) {
-      const newOrder = sortOrder === "asc" ? "desc" : "asc";
-      setSortOrder(newOrder);
-      console.log("Sort toggled:", { key, order: newOrder });
+      setSortOrder(sortOrder === "asc" ? "desc" : "asc");
     } else {
       setSortKey(key);
       setSortOrder("asc");
-      console.log("Sort changed:", { key, order: "asc" });
     }
   };
 
+  // Check if any readings exceed the threshold
   const isOverheating = (temps: { tempC: number }[]) =>
     temps.some((p) => p.tempC > OVERHEAT_THRESHOLD);
 
-  const selectedTransformer = transformersData.find((t) => t.id === selectedId);
+  // Sort and filter transformers by ID and current sort key
+  const sortedTransformers = useMemo(() => {
+    return transformersData
+      .filter((t) => t.id.toLowerCase().includes(searchQuery.toLowerCase()))
+      .sort((a, b) => {
+        if (!sortKey) return 0;
 
-  const filteredTransformers = transformersData
-    .filter((t) => t.id.toLowerCase().includes(searchQuery.toLowerCase()))
-    .sort((a, b) => {
-      if (!sortKey) return 0;
+        if (sortKey === "tempC") {
+          const aVal = a.temperatureHistory.at(-1)?.tempC ?? -Infinity;
+          const bVal = b.temperatureHistory.at(-1)?.tempC ?? -Infinity;
+          return sortOrder === "asc" ? aVal - bVal : bVal - aVal;
+        }
 
-      if (sortKey === "tempC") {
-        const aVal = a.temperatureHistory.at(-1)?.tempC ?? -Infinity;
-        const bVal = b.temperatureHistory.at(-1)?.tempC ?? -Infinity;
-        return sortOrder === "asc" ? aVal - bVal : bVal - aVal;
-      }
+        if (sortKey === "status") {
+          const aHot = isOverheating(a.temperatureHistory);
+          const bHot = isOverheating(b.temperatureHistory);
+          if (aHot === bHot) return 0;
+          return sortOrder === "asc" ? (aHot ? 1 : -1) : aHot ? -1 : 1;
+        }
 
-      if (sortKey === "status") {
-        const aHot = isOverheating(a.temperatureHistory);
-        const bHot = isOverheating(b.temperatureHistory);
-        if (aHot === bHot) return 0;
-        return sortOrder === "asc" ? (aHot ? 1 : -1) : aHot ? -1 : 1;
-      }
+        const aVal = a[sortKey];
+        const bVal = b[sortKey];
+        if (aVal < bVal) return sortOrder === "asc" ? -1 : 1;
+        if (aVal > bVal) return sortOrder === "asc" ? 1 : -1;
+        return 0;
+      });
+  }, [transformersData, sortKey, sortOrder, searchQuery]);
 
-      const aVal = a[sortKey];
-      const bVal = b[sortKey];
-      if (aVal < bVal) return sortOrder === "asc" ? -1 : 1;
-      if (aVal > bVal) return sortOrder === "asc" ? 1 : -1;
-      return 0;
-    });
-
-  // Live temperature updates every 5s
+  // Simulate live updates every 5 seconds
   useEffect(() => {
     const interval = setInterval(() => {
       setTransformersData((prev) =>
@@ -134,7 +144,7 @@ export default function Home() {
             </tr>
           </thead>
           <tbody>
-            {filteredTransformers.map((t) => {
+            {sortedTransformers.map((t) => {
               const isSelected = selectedId === t.id;
               const latestTemp = t.temperatureHistory.at(-1)?.tempC;
               const maxTemp = Math.max(...t.temperatureHistory.map((x) => x.tempC));
