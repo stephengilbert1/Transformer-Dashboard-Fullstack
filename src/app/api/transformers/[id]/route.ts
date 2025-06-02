@@ -40,7 +40,7 @@ function generateTransformer(id: string) {
   };
 }
 
-export async function GET(_req: Request, { params }: { params: { id: string } }) {
+export async function GET(request: Request, { params }: { params: { id: string } }) {
   const { id } = params;
 
   if (!id.startsWith("XFMR-")) {
