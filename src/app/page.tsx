@@ -15,16 +15,16 @@ type Transformer = {
   temperatureHistory: { timestamp: string; tempC: number }[];
 };
 
+type SortableKey = "id" | "kVA" | "tempC" | "type" | "mfgDate" | "status";
+
 export default function Home() {
-  const [sortKey, setSortKey] = useState<
-    "id" | "kVA" | "tempC" | "type" | "mfgDate" | "status" | null
-  >(null);
+  const [sortKey, setSortKey] = useState<SortableKey | null>(null);
+
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
   const [transformersData, setTransformersData] = useState<Transformer[]>([]);
   const [selectedId, setSelectedId] = useState<string>("");
   const [searchQuery, setSearchQuery] = useState("");
-  const [hoveredId, setHoveredId] = useState<string | null>(null);
-
+  const tickStyle: Partial<TextProps> = { angle: -45, fontSize: 10 };
   // Initialize mock data once on mount
   useEffect(() => {
     const initialData = generateMockTransformers(1000);
@@ -126,7 +126,7 @@ export default function Home() {
                 <th
                   key={key}
                   className="px-4 py-2 cursor-pointer select-none"
-                  onClick={() => handleSort(key as any)}
+                  onClick={() => handleSort(key as SortableKey)}
                 >
                   {label} {sortKey === key ? (sortOrder === "asc" ? "▲" : "▼") : ""}
                 </th>
@@ -143,8 +143,6 @@ export default function Home() {
                 <tr
                   key={t.id}
                   onClick={() => setSelectedId(t.id)}
-                  onMouseEnter={() => setHoveredId(t.id)}
-                  onMouseLeave={() => setHoveredId(null)}
                   className={`relative cursor-pointer hover:bg-blue-50 ${
                     isSelected ? "bg-blue-100 border-l-4 border-blue-600" : ""
                   }`}
@@ -204,7 +202,7 @@ export default function Home() {
                 }
                 interval={3}
                 minTickGap={61}
-                tick={{ angle: -45, fontSize: 10 } as Partial<TextProps>}
+                tick={tickStyle}
               />
               <YAxis domain={[60, 120]} />
               <Tooltip />
