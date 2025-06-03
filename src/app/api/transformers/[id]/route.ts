@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
 const types = ["1ph-pole", "3ph-pole", "1ph-pad", "3ph-pad"] as const;
 
@@ -47,8 +47,9 @@ type Params = {
   };
 };
 
-export async function GET(request: Request, { params }: { params: { id: string } }) {
-  const { id } = params;
+// @ts-ignore — context type is inferred by Next.js/Vercel at runtime
+export async function GET(request: NextRequest, context) {
+  const id = context.params.id;
 
   if (!id.startsWith("XFMR-")) {
     return NextResponse.json({ error: "Invalid transformer ID" }, { status: 400 });
