@@ -40,6 +40,13 @@ function generateTransformer(id: string) {
   };
 }
 
+// The type for the context must be manually typed
+type Params = {
+  params: {
+    id: string;
+  };
+};
+
 export async function GET(request: Request, { params }: { params: { id: string } }) {
   const { id } = params;
 
