@@ -32,27 +32,41 @@ export default function Home() {
   // Test Supabase
   useEffect(() => {
     const fetchSupabaseData = async () => {
-      const { data, error } = await supabase.from("transformers").select("*");
-      if (error) {
-        console.error("Supabase fetch error:", error);
-      } else {
-        setTransformersData(data as Transformer[]);
-        if (data.length > 0) setSelectedTransformer(data[0]);
+      const { data: transformers, error: transformersError } = await supabase
+        .from("transformers")
+        .select("*");
+      const { data: readings, error: readingsError } = await supabase
+        .from("temperature_readings")
+        .select("*");
+
+      if (transformersError || readingsError) {
+        console.error("Supabase fetch error:", transformersError || readingsError);
+        return;
       }
+
+      // Group temperature readings by transformer_id
+      const readingsById = readings.reduce(
+        (acc: Record<string, { timestamp: string; tempC: number }[]>, reading) => {
+          const { transformer_id, tempC, timestamp } = reading;
+          if (!acc[transformer_id]) acc[transformer_id] = [];
+          acc[transformer_id].push({ tempC, timestamp });
+          return acc;
+        },
+        {}
+      );
+
+      // Merge readings into transformer data
+      const merged = transformers.map((xfmr: any) => ({
+        ...xfmr,
+        temperatureHistory: readingsById[xfmr.id] ?? [],
+      }));
+
+      setTransformersData(merged);
+      if (merged.length > 0) setSelectedTransformer(merged[0]);
     };
 
     fetchSupabaseData();
   }, []);
-
-  // // Load initial transformer data from mock API
-  // useEffect(() => {
-  //   fetch("/api/transformers")
-  //     .then((res) => res.json())
-  //     .then((data) => {
-  //       setTransformersData(data);
-  //       if (data.length > 0) setSelectedTransformer(data[0]); // 👈 select Transformer 1
-  //     });
-  // }, []);
 
   // Update selected transformer when ID changes
   useEffect(() => {
@@ -60,6 +74,30 @@ export default function Home() {
     const xfmr = transformersData.find((t) => t.id === selectedId);
     setSelectedTransformer(xfmr ?? null);
   }, [selectedId, transformersData]);
+
+  // const [temperatureHistory, setTemperatureHistory] = useState<
+  //   { timestamp: string; tempC: number }[]
+  // >([]);
+
+  // useEffect(() => {
+  //   if (!selectedTransformer) return;
+
+  //   const fetchTempHistory = async () => {
+  //     const { data, error } = await supabase
+  //       .from("temperature_readings")
+  //       .select("timestamp, tempC")
+  //       .eq("transformer_id", selectedTransformer.id)
+  //       .order("timestamp", { ascending: true });
+
+  //     if (error) {
+  //       console.error("Failed to fetch temperature readings:", error);
+  //     } else {
+  //       setTemperatureHistory(data);
+  //     }
+  //   };
+
+  //   fetchTempHistory();
+  // }, [selectedTransformer]);
 
   // Toggle or change sort key and order
   const handleSort = (key: typeof sortKey) => {
