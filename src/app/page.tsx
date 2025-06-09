@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import type { TextProps } from "recharts";
+import { supabase } from "@/lib/supabaseClient";
 //import { generateMockTransformers } from "@/data/transformers";
 
 const OVERHEAT_THRESHOLD = 110;
@@ -27,15 +28,30 @@ export default function Home() {
 
   const tickStyle: Partial<TextProps> = { angle: -45, fontSize: 10 };
 
-  // Load initial transformer data from API
+  // Test Supabase
   useEffect(() => {
-    fetch("/api/transformers")
-      .then((res) => res.json())
-      .then((data) => {
-        setTransformersData(data);
-        if (data.length > 0) setSelectedTransformer(data[0]); // 👈 select Transformer 1
-      });
+    const fetchSupabaseData = async () => {
+      const { data, error } = await supabase.from("transformers").select("*");
+      if (error) {
+        console.error("Supabase fetch error:", error);
+      } else {
+        setTransformersData(data as Transformer[]);
+        if (data.length > 0) setSelectedTransformer(data[0]);
+      }
+    };
+
+    fetchSupabaseData();
   }, []);
+
+  // // Load initial transformer data from mock API
+  // useEffect(() => {
+  //   fetch("/api/transformers")
+  //     .then((res) => res.json())
+  //     .then((data) => {
+  //       setTransformersData(data);
+  //       if (data.length > 0) setSelectedTransformer(data[0]); // 👈 select Transformer 1
+  //     });
+  // }, []);
 
   // Update selected transformer when ID changes
   useEffect(() => {
@@ -55,8 +71,8 @@ export default function Home() {
   };
 
   // Check if any readings exceed the threshold
-  const isOverheating = (temps: { tempC: number }[]) =>
-    temps.some((p) => p.tempC > OVERHEAT_THRESHOLD);
+  const isOverheating = (temps?: { tempC: number }[]) =>
+    !!temps && temps.some((p) => p.tempC > OVERHEAT_THRESHOLD);
 
   // Sort and filter transformers by ID and current sort key
   const sortedTransformers = useMemo(() => {
@@ -91,8 +107,11 @@ export default function Home() {
     const interval = setInterval(() => {
       setTransformersData((prev) =>
         prev.map((t) => {
-          const last = t.temperatureHistory.at(-1);
-          const nextTemp = Math.round((last?.tempC ?? 75) + (Math.random() * 6 - 3));
+          const history = t.temperatureHistory ?? [];
+
+          const last = history.at(-1);
+          const lastTemp = last?.tempC ?? 75;
+          const nextTemp = Math.round(lastTemp + (Math.random() * 6 - 3));
           const nextReading = {
             timestamp: new Date().toISOString(),
             tempC: nextTemp,
@@ -100,7 +119,7 @@ export default function Home() {
 
           return {
             ...t,
-            temperatureHistory: [...t.temperatureHistory.slice(-9), nextReading],
+            temperatureHistory: [...history.slice(-9), nextReading],
           };
         })
       );
@@ -146,8 +165,8 @@ export default function Home() {
           <tbody>
             {sortedTransformers.map((t) => {
               const isSelected = selectedId === t.id;
-              const latestTemp = t.temperatureHistory.at(-1)?.tempC;
-              const maxTemp = Math.max(...t.temperatureHistory.map((x) => x.tempC));
+              const latestTemp = t.temperatureHistory?.at(-1)?.tempC ?? undefined;
+              const maxTemp = Math.max(...(t.temperatureHistory?.map((x) => x.tempC) ?? [0]));
 
               return (
                 <tr
