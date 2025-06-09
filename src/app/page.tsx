@@ -4,6 +4,8 @@ import { useState, useEffect, useMemo } from "react";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import type { TextProps } from "recharts";
 import { supabase } from "@/lib/supabaseClient";
+import { useRouter } from "next/navigation";
+
 //import { generateMockTransformers } from "@/data/transformers";
 
 const OVERHEAT_THRESHOLD = 110;
@@ -151,6 +153,7 @@ export default function Home() {
                 ["mfgDate", "Mfg Date"],
                 ["tempC", "Current Temp"],
                 ["status", "Status"],
+                ["test", "Test"],
               ].map(([key, label]) => (
                 <th
                   key={key}
@@ -167,7 +170,7 @@ export default function Home() {
               const isSelected = selectedId === t.id;
               const latestTemp = t.temperatureHistory?.at(-1)?.tempC ?? undefined;
               const maxTemp = Math.max(...(t.temperatureHistory?.map((x) => x.tempC) ?? [0]));
-
+              const router = useRouter();
               return (
                 <tr
                   key={t.id}
@@ -193,6 +196,23 @@ export default function Home() {
                         Normal
                       </span>
                     )}
+                  </td>
+                  <td className="p-2">
+                    <button
+                      className="text-blue-600 hover:underline text-xs"
+                      onClick={async (e) => {
+                        e.stopPropagation(); // prevent row click selection
+                        const latest = t.temperatureHistory?.at(-1)?.tempC ?? 25;
+                        await fetch("/api/update-temperature", {
+                          method: "POST",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ id: t.id, newTempC: latest + 1 }),
+                        });
+                        router.refresh(); // or refetch local state if not using router
+                      }}
+                    >
+                      +1°C
+                    </button>
                   </td>
                 </tr>
               );
