@@ -15,7 +15,7 @@ import type { TextProps } from "recharts";
 import { supabase } from "@/lib/supabaseClient";
 
 const OVERHEAT_THRESHOLD = 110;
-const TIME_RANGES = { "1d": 1, "1w": 7, "1m": 30 };
+const TIME_RANGES = { "1d": 1, "1W": 7, "1M": 30 };
 
 const HEADER_LABELS: Record<string, string> = {
   id: "ID",
@@ -32,9 +32,39 @@ type Transformer = {
   kVA: number;
   mfgDate: string;
   temperatureHistory: { timestamp: string; tempC: number }[];
+  latestTemp?: number;
 };
 
 type SortableKey = "id" | "kVA" | "tempC" | "type" | "mfgDate" | "status";
+
+async function fetchTransformerWithReadings(
+  transformerId: string,
+  days: number
+): Promise<Transformer | null> {
+  const endTime = new Date();
+  const startTime = new Date(endTime.getTime() - days * 24 * 60 * 60 * 1000);
+
+  const { data: transformer, error: transformerError } = await supabase
+    .from("transformers")
+    .select("*")
+    .eq("id", transformerId)
+    .single();
+
+  const { data: readings, error: readingsError } = await supabase
+    .from("temperature_readings")
+    .select("timestamp, tempC")
+    .eq("transformer_id", transformerId)
+    .gte("timestamp", startTime.toISOString())
+    .lte("timestamp", endTime.toISOString())
+    .order("timestamp", { ascending: true });
+
+  if (transformerError || readingsError) {
+    console.error("Error fetching transformer or readings:", transformerError || readingsError);
+    return null;
+  }
+
+  return { ...transformer, temperatureHistory: readings ?? [] };
+}
 
 export default function Home() {
   const [transformersData, setTransformersData] = useState<Transformer[]>([]);
@@ -43,74 +73,117 @@ export default function Home() {
   const [sortKey, setSortKey] = useState<SortableKey | null>(null);
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
   const [searchQuery, setSearchQuery] = useState("");
-  const [timeRange, setTimeRange] = useState<keyof typeof TIME_RANGES>("1w");
+  const [timeRange, setTimeRange] = useState<keyof typeof TIME_RANGES>("1W");
 
-  const tickStyle: Partial<TextProps> = { angle: -45, fontSize: 10 };
+  const tickStyle: Partial<TextProps> = { angle: 0, fontSize: 10 };
+
+  const fetchTransformersData = async (range: keyof typeof TIME_RANGES) => {
+    const days = TIME_RANGES[range];
+    const endTime = new Date();
+    const startTime = new Date(endTime.getTime() - days * 24 * 60 * 60 * 1000);
+
+    // 1. Fetch all transformers
+    const { data: transformers, error: transformersError } = await supabase
+      .from("transformers")
+      .select("*");
+
+    if (transformersError) {
+      console.error("Error fetching transformers:", transformersError);
+      return;
+    }
+
+    // 2. Fetch all readings in selected range
+    const { data: timeRangeReadings, error: rangeError } = await supabase
+      .from("temperature_readings")
+      .select("transformer_id, timestamp, tempC")
+      .gte("timestamp", startTime.toISOString())
+      .lte("timestamp", endTime.toISOString());
+
+    if (rangeError) {
+      console.error("Error fetching range readings:", rangeError);
+      return;
+    }
+
+    // 3. Fetch latest reading for each transformer (1 per transformer)
+    const { data: latestReadings, error: latestError } = await supabase
+      .from("temperature_readings")
+      .select("transformer_id, tempC, timestamp")
+      .in(
+        "transformer_id",
+        transformers.map((t) => t.id)
+      )
+      .order("timestamp", { ascending: false });
+
+    if (latestError) {
+      console.error("Error fetching latest temps:", latestError);
+      return;
+    }
+
+    // Build latest temp map
+    const latestMap = new Map<string, number>();
+    for (const reading of latestReadings) {
+      if (!latestMap.has(reading.transformer_id)) {
+        latestMap.set(reading.transformer_id, reading.tempC);
+      }
+    }
+
+    // Group time-range readings
+    const groupedRange = timeRangeReadings.reduce(
+      (acc, reading) => {
+        const id = reading.transformer_id;
+        if (!acc[id]) acc[id] = [];
+        acc[id].push({ timestamp: reading.timestamp, tempC: reading.tempC });
+        return acc;
+      },
+      {} as Record<string, { timestamp: string; tempC: number }[]>
+    );
+
+    // Enrich transformers
+    const enriched = transformers.map((xfmr) => ({
+      ...xfmr,
+      latestTemp: latestMap.get(xfmr.id) ?? null,
+      temperatureHistory: (groupedRange[xfmr.id] ?? []).sort(
+        (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+      ),
+    }));
+
+    setTransformersData(enriched);
+    if (!selectedId && enriched.length > 0) {
+      setSelectedId(enriched[0].id);
+    }
+  };
 
   // Fetch all transformers with recent data
   useEffect(() => {
-    const fetchTransformers = async () => {
-      const { data: transformers, error: transformersError } = await supabase
-        .from("transformers")
-        .select("*");
-      if (transformersError)
-        return console.error("Error fetching transformers:", transformersError);
+    fetchTransformersData(timeRange);
 
-      const endTime = new Date();
-      const startTime = new Date(endTime.getTime() - 1 * 24 * 60 * 60 * 1000);
+    const interval = setInterval(() => {
+      fetchTransformersData(timeRange);
+    }, 60_000);
 
-      const { data: allReadings, error: readingsError } = await supabase
-        .from("temperature_readings")
-        .select("transformer_id, timestamp, tempC")
-        .gte("timestamp", startTime.toISOString())
-        .lte("timestamp", endTime.toISOString());
-
-      if (readingsError) return console.error("Error fetching readings:", readingsError);
-
-      const grouped = allReadings?.reduce(
-        (acc, reading) => {
-          if (!acc[reading.transformer_id]) acc[reading.transformer_id] = [];
-          acc[reading.transformer_id].push({ timestamp: reading.timestamp, tempC: reading.tempC });
-          return acc;
-        },
-        {} as Record<string, { timestamp: string; tempC: number }[]>
-      );
-
-      const enriched = transformers.map((xfmr) => ({
-        ...xfmr,
-        temperatureHistory: grouped?.[xfmr.id] ?? [],
-      }));
-
-      setTransformersData(enriched);
-      if (enriched.length > 0) setSelectedId(enriched[0].id);
-    };
-    fetchTransformers();
-  }, []);
+    return () => clearInterval(interval);
+  }, [timeRange]);
 
   // Fetch readings for selected transformer and time range
   useEffect(() => {
     const fetchReadings = async () => {
       if (!selectedId) return;
-      const endTime = new Date();
-      const days = TIME_RANGES[timeRange];
-      const startTime = new Date(endTime.getTime() - days * 24 * 60 * 60 * 1000);
-
-      const { data: transformer } = await supabase
-        .from("transformers")
-        .select("*")
-        .eq("id", selectedId)
-        .single();
-      const { data: readings } = await supabase
-        .from("temperature_readings")
-        .select("timestamp, tempC")
-        .eq("transformer_id", selectedId)
-        .gte("timestamp", startTime.toISOString())
-        .lte("timestamp", endTime.toISOString())
-        .order("timestamp", { ascending: true });
-
-      setSelectedTransformer({ ...transformer, temperatureHistory: readings ?? [] });
+      const transformer = await fetchTransformerWithReadings(selectedId, TIME_RANGES[timeRange]);
+      if (transformer) setSelectedTransformer(transformer);
     };
     fetchReadings();
+  }, [selectedId, timeRange]);
+
+  // Auto-refresh readings every 60 seconds
+  useEffect(() => {
+    const interval = setInterval(async () => {
+      if (selectedId) {
+        const transformer = await fetchTransformerWithReadings(selectedId, TIME_RANGES[timeRange]);
+        if (transformer) setSelectedTransformer(transformer);
+      }
+    }, 60_000); // refresh every 60 seconds
+
+    return () => clearInterval(interval);
   }, [selectedId, timeRange]);
 
   const handleSort = (key: SortableKey) => {
@@ -130,10 +203,11 @@ export default function Home() {
       .sort((a, b) => {
         if (!sortKey) return 0;
         if (sortKey === "tempC") {
-          const aVal = a.temperatureHistory.at(-1)?.tempC ?? -Infinity;
-          const bVal = b.temperatureHistory.at(-1)?.tempC ?? -Infinity;
+          const aVal = a.latestTemp ?? -Infinity;
+          const bVal = b.latestTemp ?? -Infinity;
           return sortOrder === "asc" ? aVal - bVal : bVal - aVal;
         }
+
         if (sortKey === "status") {
           const aHot = isOverheating(a.temperatureHistory);
           const bHot = isOverheating(b.temperatureHistory);
@@ -220,21 +294,29 @@ export default function Home() {
           <tbody>
             {sortedTransformers.map((t) => {
               const isSelected = selectedId === t.id;
-              const latestTemp = t.temperatureHistory.at(-1)?.tempC;
-              const maxTemp = Math.max(...(t.temperatureHistory.map((x) => x.tempC) ?? [0]));
+              const latestTemp = t.latestTemp ?? null; // ✅ Use precomputed latestTemp
+
               return (
                 <tr
                   key={t.id}
                   onClick={() => setSelectedId(t.id)}
-                  className={`cursor-pointer hover:bg-blue-50 ${isSelected ? "bg-blue-100 border-l-4 border-blue-600" : ""}`}
+                  className={`cursor-pointer hover:bg-blue-50 ${
+                    isSelected ? "bg-blue-100 border-l-4 border-blue-600" : ""
+                  }`}
                 >
                   <td className={`p-2 font-mono ${isSelected ? "font-bold" : ""}`}>{t.id}</td>
                   <td className="p-2">{t.type}</td>
                   <td className="p-2">{t.kVA}</td>
                   <td className="p-2">{t.mfgDate}</td>
-                  <td className="text-center">{latestTemp?.toFixed(1) ?? "—"}</td>
+
+                  {/* ✅ Current Temp column now uses latestTemp */}
+                  <td className="text-center">
+                    {latestTemp !== null ? latestTemp.toFixed(1) : "—"}
+                  </td>
+
+                  {/* ✅ Status column also uses latestTemp */}
                   <td className="p-2">
-                    {maxTemp > OVERHEAT_THRESHOLD ? (
+                    {latestTemp !== null && latestTemp > OVERHEAT_THRESHOLD ? (
                       <span className="text-red-700 bg-red-100 px-2 py-1 rounded-full text-xs font-semibold">
                         Overheating
                       </span>
