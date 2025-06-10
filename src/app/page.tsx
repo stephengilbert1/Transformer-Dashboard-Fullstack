@@ -256,7 +256,7 @@ export default function Home() {
       return (
         <div className="bg-white border border-gray-300 rounded shadow-md p-2 text-sm">
           <div className="font-medium text-gray-800">{date} PST</div>
-          <div className="text-blue-600 font-semibold">{payload[0].value}°C</div>
+          <div className="text-blue-600 font-semibold">{Number(payload[0].value).toFixed(1)}°C</div>
         </div>
       );
     }
@@ -382,7 +382,7 @@ export default function Home() {
                 strokeDasharray="4 2"
                 label={{
                   value: `Overheat (${OVERHEAT_THRESHOLD}°C)`,
-                  position: "top", // 👈 this moves it *above* the line
+                  position: "top",
                   fill: "red",
                   fontSize: 12,
                 }}
