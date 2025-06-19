@@ -1,7 +1,7 @@
 {
   "crons": [
     {
-      "path": "/api/simulate-readings",
+      "path": "/api/simulate-reading",
       "schedule": "0 2 * * *"
     }
   ]
