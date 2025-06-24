@@ -41,15 +41,14 @@ function generateTransformer(id: string) {
 }
 
 export async function GET(
-  _request: NextRequest,
-  context: { params: { id: string } }
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }   // ✅ `params` must be a Promise
 ) {
-  const id = context.params.id;
-
+  const { id } = await params;
   if (!id.startsWith("XFMR-")) {
     return NextResponse.json({ error: "Invalid transformer ID" }, { status: 400 });
   }
-
   const transformer = generateTransformer(id);
   return NextResponse.json(transformer);
 }
+
