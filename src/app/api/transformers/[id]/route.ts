@@ -40,15 +40,10 @@ function generateTransformer(id: string) {
   };
 }
 
-// The type for the context must be manually typed
-type Params = {
-  params: {
-    id: string;
-  };
-};
-
-// @ts-ignore — context type is inferred by Next.js/Vercel at runtime
-export async function GET(request: NextRequest, context) {
+export async function GET(
+  _request: NextRequest,
+  context: { params: { id: string } }
+) {
   const id = context.params.id;
 
   if (!id.startsWith("XFMR-")) {
