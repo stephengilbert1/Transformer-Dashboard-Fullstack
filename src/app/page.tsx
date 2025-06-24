@@ -15,7 +15,7 @@ import type { TextProps } from "recharts";
 import { supabase } from "@/lib/supabaseClient";
 
 const OVERHEAT_THRESHOLD = 110;
-const TIME_RANGES = { "1d": 1, "1W": 7, "1M": 30 };
+const TIME_RANGES = { "1d": 1, "1w": 7, "1m": 30 };
 
 const HEADER_LABELS: Record<string, string> = {
   id: "ID",
@@ -50,20 +50,31 @@ async function fetchTransformerWithReadings(
     .eq("id", transformerId)
     .single();
 
-  const { data: readings, error: readingsError } = await supabase
-    .from("temperature_readings")
-    .select("timestamp, tempC")
-    .eq("transformer_id", transformerId)
-    .gte("timestamp", startTime.toISOString())
-    .lte("timestamp", endTime.toISOString())
-    .order("timestamp", { ascending: true });
+  const { data: downsampled, error: rpcError } = await supabase.rpc(
+    "downsample_temperature_readings",
+    {
+      transformer_id: transformerId,
+      start_time: startTime.toISOString(),
+      end_time: endTime.toISOString(),
+      buckets: 50,
+    }
+  );
 
-  if (transformerError || readingsError) {
-    console.error("Error fetching transformer or readings:", transformerError || readingsError);
+  if (transformerError || rpcError || !downsampled) {
+    console.error("Transformer error:", transformerError);
+    console.error("RPC error:", rpcError);
+    console.error("Downsampled:", downsampled);
+    console.error("Params:", {
+      transformerId,
+      start: startTime.toISOString(),
+      end: endTime.toISOString(),
+      buckets: 50,
+    });
+
     return null;
   }
 
-  return { ...transformer, temperatureHistory: readings ?? [] };
+  return { ...transformer, temperatureHistory: downsampled };
 }
 
 export default function Home() {
@@ -73,12 +84,14 @@ export default function Home() {
   const [sortKey, setSortKey] = useState<SortableKey | null>(null);
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
   const [searchQuery, setSearchQuery] = useState("");
-  const [timeRange, setTimeRange] = useState<keyof typeof TIME_RANGES>("1W");
+  const [timeRange, setTimeRange] = useState<keyof typeof TIME_RANGES>("1w");
 
   const tickStyle: Partial<TextProps> = { angle: 0, fontSize: 10 };
 
   const fetchTransformersData = async (range: keyof typeof TIME_RANGES) => {
     const days = TIME_RANGES[range];
+    console.log("Time range selected:", timeRange, "=", TIME_RANGES[timeRange]);
+
     const endTime = new Date();
     const startTime = new Date(endTime.getTime() - days * 24 * 60 * 60 * 1000);
 
@@ -139,13 +152,22 @@ export default function Home() {
     );
 
     // Enrich transformers
-    const enriched = transformers.map((xfmr) => ({
-      ...xfmr,
-      latestTemp: latestMap.get(xfmr.id) ?? null,
-      temperatureHistory: (groupedRange[xfmr.id] ?? []).sort(
+    const enriched = transformers.map((xfmr) => {
+      const raw = (groupedRange[xfmr.id] ?? []).sort(
         (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
-      ),
-    }));
+      );
+      const maxPoints = 1000;
+      const downsampled =
+        raw.length <= maxPoints
+          ? raw
+          : raw.filter((_, index) => index % Math.ceil(raw.length / maxPoints) === 0);
+
+      return {
+        ...xfmr,
+        latestTemp: latestMap.get(xfmr.id) ?? null,
+        temperatureHistory: downsampled, // ✅ this was missing
+      };
+    });
 
     setTransformersData(enriched);
     if (!selectedId && enriched.length > 0) {
@@ -171,6 +193,8 @@ export default function Home() {
       const transformer = await fetchTransformerWithReadings(selectedId, TIME_RANGES[timeRange]);
       if (transformer) setSelectedTransformer(transformer);
     };
+    console.log("Calling fetchTransformerWithReadings with days =", TIME_RANGES[timeRange]);
+
     fetchReadings();
   }, [selectedId, timeRange]);
 
@@ -233,15 +257,37 @@ export default function Home() {
       });
   }, [transformersData, sortKey, sortOrder, searchQuery]);
 
-  const filteredTemperatureHistory = useMemo(() => {
-    if (!selectedTransformer?.temperatureHistory) return [];
-    const endTime = new Date();
-    const days = TIME_RANGES[timeRange];
-    const startTime = new Date(endTime.getTime() - days * 24 * 60 * 60 * 1000);
-    return selectedTransformer.temperatureHistory.filter((entry) => {
-      const timestamp = new Date(entry.timestamp);
-      return timestamp >= startTime && timestamp <= endTime;
+  const preparedData = useMemo(() => {
+    const chartEnd = Date.now();
+    const chartStart = chartEnd - TIME_RANGES[timeRange] * 24 * 60 * 60 * 1000;
+
+    if (!selectedTransformer?.temperatureHistory) {
+      return { data: [], chartStart, chartEnd };
+    }
+    console.log("First timestamp:", selectedTransformer.temperatureHistory[0]?.timestamp);
+    console.log("Last timestamp:", selectedTransformer.temperatureHistory.at(-1)?.timestamp);
+
+    const raw = selectedTransformer.temperatureHistory.map((entry) => {
+      const ts = new Date(entry.timestamp);
+      ts.setSeconds(0, 0); // round to nearest minute
+      return {
+        ...entry,
+        timestamp: ts.getTime(),
+      };
+      console.log("Prepared data length:", preparedData.data.length);
     });
+
+    const data = raw.filter(
+      (entry) => entry.timestamp >= chartStart && entry.timestamp <= chartEnd
+    );
+
+    console.log({
+      chartRange: [new Date(chartStart).toISOString(), new Date(chartEnd).toISOString()],
+      totalPoints: raw.length,
+      filteredPoints: data.length,
+    });
+
+    return { data, chartStart, chartEnd };
   }, [selectedTransformer, timeRange]);
 
   const CustomTooltip = ({ active, payload, label }: any) => {
@@ -263,10 +309,14 @@ export default function Home() {
     return null;
   };
 
+  function generateTicks(start: number, end: number, count: number): number[] {
+    const interval = (end - start) / (count - 1);
+    return Array.from({ length: count }, (_, i) => start + i * interval);
+  }
+
   return (
     <main className="min-h-screen p-6 max-w-5xl mx-auto">
       <h1 className="text-2xl font-bold mb-6 text-gray-800">Transformer Dashboard</h1>
-
       {/* Search and Table */}
       <input
         type="text"
@@ -275,7 +325,6 @@ export default function Home() {
         onChange={(e) => setSearchQuery(e.target.value)}
         className="border rounded px-2 py-1 mb-4 w-full max-w-sm"
       />
-
       <div className="max-h-[400px] overflow-y-auto border rounded shadow-sm">
         <table className="min-w-full divide-y divide-gray-200 text-sm">
           <thead className="sticky top-0 bg-white z-10">
@@ -332,7 +381,6 @@ export default function Home() {
           </tbody>
         </table>
       </div>
-
       {/* Time Range */}
       <div className="mb-4 mt-4">
         {Object.keys(TIME_RANGES).map((key) => (
@@ -347,15 +395,22 @@ export default function Home() {
       </div>
 
       {/* Chart */}
-      {selectedTransformer && filteredTemperatureHistory.length > 0 ? (
+      {selectedTransformer && preparedData.data.length > 0 ? (
         <>
           <h2 className="text-xl font-semibold text-gray-800 mt-6 mb-2">
             {selectedTransformer.id} – Temperature History
           </h2>
+          <p className="text-sm text-gray-500 mb-2">
+            {new Date(preparedData.chartStart).toLocaleString()} –{" "}
+            {new Date(preparedData.chartEnd).toLocaleString()}
+          </p>
           <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={filteredTemperatureHistory}>
+            <LineChart data={preparedData.data}>
               <XAxis
                 dataKey="timestamp"
+                type="number"
+                scale="time"
+                domain={[preparedData.chartStart, preparedData.chartEnd]}
                 tickFormatter={(value) => {
                   const date = new Date(value);
                   return timeRange === "1d"
@@ -370,11 +425,10 @@ export default function Home() {
                         timeZone: "America/Los_Angeles",
                       });
                 }}
-                ticks={filteredTemperatureHistory
-                  .filter((_, i, arr) => i % Math.floor(arr.length / 6) === 0)
-                  .map((e) => e.timestamp)}
                 tick={tickStyle}
+                ticks={generateTicks(preparedData.chartStart, preparedData.chartEnd, 6)}
               />
+
               <YAxis domain={[0, 140]} />
               <ReferenceLine
                 y={OVERHEAT_THRESHOLD}
