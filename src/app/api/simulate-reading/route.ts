@@ -19,27 +19,26 @@ export async function GET() {
 
     const newReadings = [];
 
-    for (const tf of transformers) {
-  const { data: lastReading, error: readErr } = await supabase
-    .from("temperature_readings")
-    .select("timestamp")
-    .eq("transformer_id", tf.id)
-    .order("timestamp", { ascending: false })
-    .limit(1)
-    .single();
+    const now = new Date();
+    const year = now.getUTCFullYear();
+    const month = now.getUTCMonth();
+    const day = now.getUTCDate();
 
-  const startTime = lastReading
-  ? new Date(new Date(lastReading.timestamp).getTime() + 60 * 60 * 1000)
-  : new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const startOfDayUTC = new Date(Date.UTC(year, month, day, 0, 0, 0));
+
+
+
+    for (const tf of transformers) {
+  
 
 
   for (let i = 0; i < 24; i++) {
-    const timestamp = new Date(startTime.getTime() + i * 60 * 60 * 1000);
+    const timestamp = new Date(startOfDayUTC.getTime() + i * 60 * 60 * 1000);
     const hour = timestamp.getUTCHours();
-    const angle = ((2 * Math.PI) / 24) * (hour - 19);
+    const angle = ((2 * Math.PI) / 24) * (hour - 17);
     const sin = (Math.sin(angle) + 1) / 2;
     const base = 50 + Math.random() * 20;
-    const tempC = base + 20 * sin + (Math.random() * 2 - 1) * 1.5;
+    const tempC = base + 40 * sin + (Math.random() * 2 - 1) * 1.5;
 
     newReadings.push({
       transformer_id: tf.id,
