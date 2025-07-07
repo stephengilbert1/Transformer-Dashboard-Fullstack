@@ -15,11 +15,16 @@ type Transformer = {
   type: string;
   kVA: number;
   mfgDate: string;
-  temperatureHistory: { timestamp: string; tempC: number }[];
+  temperatureHistory: TemperatureReading[];
   latestTemp?: number;
 };
 
 type SortableKey = "id" | "kVA" | "tempC" | "type" | "mfgDate" | "status";
+
+type TemperatureReading = {
+  timestamp: string;
+  tempC: number;
+};
 
 async function fetchTransformerWithReadings(
   transformerId: string,
@@ -34,31 +39,27 @@ async function fetchTransformerWithReadings(
     .eq("id", transformerId)
     .single();
 
-  const { data: downsampled, error: rpcError } = await supabase.rpc(
-    "downsample_temperature_readings",
-    {
-      transformer_id: transformerId,
-      start_time: startTime.toISOString(),
-      end_time: endTime.toISOString(),
-      buckets: 50,
-    }
-  );
+  const { data: readings, error: readingsError } = await supabase
+    .from("temperature_readings")
+    .select("timestamp, tempC")
+    .eq("transformer_id", transformerId)
+    .gte("timestamp", startTime.toISOString())
+    .lte("timestamp", endTime.toISOString());
 
-  if (transformerError || rpcError || !downsampled) {
-    console.error("Transformer error:", transformerError);
-    console.error("RPC error:", rpcError);
-    console.error("Downsampled:", downsampled);
-    console.error("Params:", {
-      transformerId,
-      start: startTime.toISOString(),
-      end: endTime.toISOString(),
-      buckets: 50,
-    });
-
+  if (transformerError || readingsError || !readings) {
+    console.error("Error fetching transformer or readings:", transformerError, readingsError);
     return null;
   }
 
-  return { ...transformer, temperatureHistory: downsampled };
+  const now = new Date();
+  const bufferMs = 60 * 1000;
+  const safeNow = new Date(now.getTime() - bufferMs);
+
+  const filtered = readings
+    .filter((r: TemperatureReading) => new Date(r.timestamp) <= safeNow)
+    .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime());
+
+  return { ...transformer, temperatureHistory: filtered };
 }
 
 export default function Home() {
@@ -72,8 +73,9 @@ export default function Home() {
 
   const fetchTransformersData = async (range: keyof typeof TIME_RANGES) => {
     const days = TIME_RANGES[range];
-    const endTime = new Date();
-    const startTime = new Date(endTime.getTime() - days * 24 * 60 * 60 * 1000);
+    const now = new Date();
+    const bufferMs = 60 * 1000;
+    const safeNow = new Date(now.getTime() - bufferMs);
 
     // 1. Fetch all transformers
     const { data: transformers, error: transformersError } = await supabase
@@ -85,73 +87,30 @@ export default function Home() {
       return;
     }
 
-    // 2. Fetch all readings in selected range
-    const { data: timeRangeReadings, error: rangeError } = await supabase
-      .from("temperature_readings")
-      .select("transformer_id, timestamp, tempC")
-      .gte("timestamp", startTime.toISOString())
-      .lte("timestamp", endTime.toISOString());
+    // 2. Fetch each transformer's temperature data individually
+    const enriched: Transformer[] = [];
 
-    if (rangeError) {
-      console.error("Error fetching range readings:", rangeError);
-      return;
-    }
-
-    // 3. Fetch latest reading for each transformer (1 per transformer)
-    const { data: latestReadings, error: latestError } = await supabase
-      .from("temperature_readings")
-      .select("transformer_id, tempC, timestamp")
-      .in(
-        "transformer_id",
-        transformers.map((t) => t.id)
-      )
-      .order("timestamp", { ascending: false });
-
-    if (latestError) {
-      console.error("Error fetching latest temps:", latestError);
-      return;
-    }
-
-    // Build latest temp map
-    const latestMap = new Map<string, number>();
-    for (const reading of latestReadings) {
-      if (!latestMap.has(reading.transformer_id)) {
-        latestMap.set(reading.transformer_id, reading.tempC);
+    for (const xfmr of transformers) {
+      const xfmrWithData = await fetchTransformerWithReadings(xfmr.id, days);
+      if (xfmrWithData) {
+        enriched.push({
+          ...xfmrWithData,
+          latestTemp: xfmrWithData.temperatureHistory.at(-1)?.tempC ?? undefined,
+        });
       }
     }
 
-    // Group time-range readings
-    const groupedRange = timeRangeReadings.reduce(
-      (acc, reading) => {
-        const id = reading.transformer_id;
-        if (!acc[id]) acc[id] = [];
-        acc[id].push({ timestamp: reading.timestamp, tempC: reading.tempC });
-        return acc;
-      },
-      {} as Record<string, { timestamp: string; tempC: number }[]>
-    );
-
-    // Enrich transformers
-    const enriched = transformers.map((xfmr) => {
-      const raw = (groupedRange[xfmr.id] ?? []).sort(
-        (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
-      );
-      const maxPoints = 1000;
-      const downsampled =
-        raw.length <= maxPoints
-          ? raw
-          : raw.filter((_, index) => index % Math.ceil(raw.length / maxPoints) === 0);
-
-      return {
-        ...xfmr,
-        latestTemp: latestMap.get(xfmr.id) ?? null,
-        temperatureHistory: downsampled, // ✅ this was missing
-      };
-    });
-
+    // 3. Update state
     setTransformersData(enriched);
+
     if (!selectedId && enriched.length > 0) {
-      setSelectedId(enriched[0].id);
+      const firstId = enriched[0].id;
+      setSelectedId(firstId);
+
+      const transformer = await fetchTransformerWithReadings(firstId, days);
+      if (transformer) {
+        setSelectedTransformer(transformer);
+      }
     }
   };
 
@@ -196,7 +155,7 @@ export default function Home() {
     }
   };
 
-  const isOverheating = (temps?: { tempC: number }[]) =>
+  const isOverheating = (temps?: TemperatureReading[]) =>
     !!temps?.some((p) => p.tempC > OVERHEAT_THRESHOLD);
 
   const sortedTransformers = useMemo(() => {
@@ -251,9 +210,13 @@ export default function Home() {
       };
     });
 
-    const data = raw.filter(
-      (entry) => entry.timestamp >= chartStart && entry.timestamp <= chartEnd
-    );
+    let data = raw.filter((entry) => entry.timestamp >= chartStart && entry.timestamp <= chartEnd);
+
+    // Always ensure the most recent reading is included at the end
+    const last = raw.at(-1);
+    if (last && data.length > 0 && last.timestamp !== data.at(-1)?.timestamp) {
+      data = [...data, last];
+    }
 
     return { data, chartStart, chartEnd };
   }, [selectedTransformer, timeRange]);
