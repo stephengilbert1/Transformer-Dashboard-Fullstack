@@ -1,7 +1,7 @@
 // src/hooks/useTransformers.ts
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
-import { TransformerSummary, Transformer, TIME_RANGES } from "@/src/types";
+import { TransformerSummary, Transformer, TIME_RANGES } from "@/src/types/index";
 
 
 

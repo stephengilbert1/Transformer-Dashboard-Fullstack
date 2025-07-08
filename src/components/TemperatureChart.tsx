@@ -11,8 +11,8 @@ import {
 } from "recharts";
 import { CustomTooltip } from "@/src/components/CustomTooltip";
 import { motion, AnimatePresence } from "framer-motion";
-import type { ChartPoint } from "@/src/types";
-import { OVERHEAT_THRESHOLD } from "@/src/types";
+import type { ChartPoint } from "@/src/types/index";
+import { OVERHEAT_THRESHOLD } from "@/src/types/index";
 
 type Props = {
   transformerId: string;
