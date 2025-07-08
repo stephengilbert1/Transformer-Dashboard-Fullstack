@@ -1,30 +1,11 @@
 "use client";
 
-// export function TransformerTable() {
-//   return <div>Hello from TransformerTable</div>;
-// }
-
 // src/components/TransformerTable.tsx
 import React from "react";
-
-type TemperatureReading = {
-  timestamp: string;
-  tempC: number;
-};
-
-type Transformer = {
-  id: string;
-  type: string;
-  kVA: number;
-  mfgDate: string;
-  latestTemp?: number;
-  temperatureHistory: TemperatureReading[];
-};
-
-type SortableKey = "id" | "kVA" | "tempC" | "type" | "mfgDate" | "status";
+import { TransformerSummary, SortableKey } from "@/src/types";
 
 type Props = {
-  transformers: Transformer[];
+  transformers: TransformerSummary[];
   selectedId: string;
   onSelect: (id: string) => void;
   sortKey: SortableKey | null;
