@@ -29,3 +29,8 @@ export const TIME_RANGES = {
 } as const;
 
 export type TimeRangeKey = keyof typeof TIME_RANGES;
+
+export type ChartPoint = {
+  timestamp: number;
+  tempC: number;
+};
