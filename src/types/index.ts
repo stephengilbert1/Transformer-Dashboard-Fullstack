@@ -13,7 +13,7 @@ export type TransformerSummary = {
   type: string;
   kVA: number;
   mfgDate: string; // or Date if you're converting
-  latestTemp?: number;
+  avgTemp?: number;
 };
 
 export type Transformer = TransformerSummary & {

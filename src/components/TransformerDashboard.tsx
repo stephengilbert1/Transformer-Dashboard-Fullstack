@@ -5,6 +5,9 @@ import { TransformerTable } from "@/src/components/TransformerTable";
 import { TemperatureChart } from "@/src/components/TemperatureChart";
 import { TimeRangeSelector } from "@/src/components/TimeRangeSelector";
 import { useTransformers } from "@/src/hooks/useTransformers";
+import { TemperatureDial } from "@/src/components/TemperatureDial";
+import { calculateAverage } from "@/src/utils/calculateAverage";
+import { calculatePeak } from "@/src/utils/calculatePeak";
 
 import {
   OVERHEAT_THRESHOLD,
@@ -16,7 +19,7 @@ import {
 
 export function TransformerDashboard() {
   const [selectedTransformer, setSelectedTransformer] = useState<Transformer | null>(null);
-  const [sortKey, setSortKey] = useState<SortableKey | null>(null);
+  const [sortKey, setSortKey] = useState<SortableKey>("id");
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
   const [searchQuery, setSearchQuery] = useState("");
   const [timeRange, setTimeRange] = useState<keyof typeof TIME_RANGES>("1w");
@@ -54,23 +57,20 @@ export function TransformerDashboard() {
     }
   };
 
-  const isOverheating = (temps?: TemperatureReading[]) =>
-    !!temps?.some((p) => p.tempC > OVERHEAT_THRESHOLD);
-
   const sortedTransformers = useMemo(() => {
     return transformers
       .filter((t) => t.id.toLowerCase().includes(searchQuery.toLowerCase()))
       .sort((a, b) => {
         if (!sortKey) return 0;
         if (sortKey === "tempC") {
-          const aVal = a.latestTemp ?? -Infinity;
-          const bVal = b.latestTemp ?? -Infinity;
+          const aVal = a.avgTemp ?? -Infinity;
+          const bVal = b.avgTemp ?? -Infinity;
           return sortOrder === "asc" ? aVal - bVal : bVal - aVal;
         }
 
         if (sortKey === "status") {
-          const aHot = a.latestTemp !== undefined && a.latestTemp > OVERHEAT_THRESHOLD;
-          const bHot = b.latestTemp !== undefined && b.latestTemp > OVERHEAT_THRESHOLD;
+          const aHot = a.avgTemp !== undefined && a.avgTemp > OVERHEAT_THRESHOLD;
+          const bHot = b.avgTemp !== undefined && b.avgTemp > OVERHEAT_THRESHOLD;
           return aHot === bHot
             ? 0
             : aHot
@@ -122,40 +122,76 @@ export function TransformerDashboard() {
     return { data, chartStart, chartEnd };
   }, [selectedTransformer, timeRange]);
 
+  const history = selectedTransformer?.temperatureHistory ?? [];
+
   return (
-    <main className="min-h-screen p-6 max-w-5xl mx-auto">
+    <main className="min-h-screen h-screen flex flex-col p-6 max-w-5xl mx-auto bg-[var(--background)] text-[var(--foreground)] font-sans">
       <h1 className="text-2xl font-bold mb-6 text-gray-800">Transformer Dashboard</h1>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 flex-1 min-h-[500px]">
+        {/* LEFT: Table */}
+        <div className="flex flex-col flex-1 overflow-auto min-h-[300px]">
+          <TransformerTable
+            transformers={sortedTransformers}
+            selectedId={selectedId}
+            onSelect={setSelectedId}
+            sortKey={sortKey}
+            sortOrder={sortOrder}
+            onSort={handleSort}
+            searchQuery={searchQuery}
+            setSearchQuery={setSearchQuery}
+          />
+        </div>
 
-      <TransformerTable
-        transformers={sortedTransformers}
-        selectedId={selectedId}
-        onSelect={setSelectedId}
-        sortKey={sortKey}
-        sortOrder={sortOrder}
-        onSort={handleSort}
-        searchQuery={searchQuery}
-        setSearchQuery={setSearchQuery}
-      />
+        {/* RIGHT: Dial + Chart */}
+        <div className="flex flex-col justify-between flex-1">
+          <div className="flex flex-col flex-1">
+            {/* Top half: dials centered */}
 
-      {/* Time Range */}
-      <TimeRangeSelector
-        value={timeRange}
-        options={Object.keys(TIME_RANGES)}
-        onChange={(val) => setTimeRange(val as keyof typeof TIME_RANGES)}
-      />
+            <div className="flex flex-1 items-center justify-center">
+              {history.length > 0 && (
+                <div className="flex justify-between w-full max-w-2xl mx-auto px-4">
+                  <TemperatureDial
+                    label="Current Temp."
+                    value={
+                      history
+                        .slice()
+                        .reverse()
+                        .find((entry) => new Date(entry.timestamp).getTime() <= Date.now())
+                        ?.tempC ?? null
+                    }
+                  />
+                  <TemperatureDial label="24hr Peak" value={calculatePeak(history)} />
+                </div>
+              )}
+            </div>
 
-      {/* Chart */}
-      {selectedTransformer && preparedData.data.length > 0 ? (
-        <TemperatureChart
-          transformerId={selectedTransformer.id}
-          data={preparedData.data}
-          chartStart={preparedData.chartStart}
-          chartEnd={preparedData.chartEnd}
-          timeRange={timeRange}
-        />
-      ) : (
-        <p className="text-sm text-gray-500 mt-4">No data for the selected time range.</p>
-      )}
+            <div className="flex-none">
+              {selectedTransformer && preparedData.data.length > 0 ? (
+                <>
+                  <TemperatureChart
+                    transformerId={selectedTransformer.id}
+                    data={preparedData.data}
+                    chartStart={preparedData.chartStart}
+                    chartEnd={preparedData.chartEnd}
+                    timeRange={timeRange}
+                  />
+                  <div className="flex-none">
+                    <div className="flex justify-center gap-4 ">
+                      <TimeRangeSelector
+                        value={timeRange}
+                        options={Object.keys(TIME_RANGES)}
+                        onChange={(val) => setTimeRange(val as keyof typeof TIME_RANGES)}
+                      />
+                    </div>
+                  </div>
+                </>
+              ) : (
+                <p className="text-sm text-gray-500 mt-4">No data for the selected time range.</p>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
     </main>
   );
 }

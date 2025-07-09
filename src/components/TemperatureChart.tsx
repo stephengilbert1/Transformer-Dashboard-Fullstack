@@ -47,7 +47,7 @@ export function TemperatureChart({ transformerId, data, chartStart, chartEnd, ti
             transition={{ duration: 0.3 }}
           >
             <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={data}>
+              <LineChart data={data} margin={{ top: 10, right: 20, bottom: 20, left: 30 }}>
                 <XAxis
                   dataKey="timestamp"
                   type="number"
@@ -68,10 +68,18 @@ export function TemperatureChart({ transformerId, data, chartStart, chartEnd, ti
                         });
                   }}
                   tick={{ fontSize: 10 }}
-                  ticks={generateTicks(chartStart, chartEnd, 6)}
+                  ticks={generateTicks(chartStart, chartEnd, 7)}
                 />
 
-                <YAxis domain={[0, 140]} />
+                <YAxis
+                  domain={[0, 140]}
+                  orientation="right"
+                  axisLine={false}
+                  tickLine={false}
+                  width={10} // Optional: reduce or adjust to match spacing
+                  tick={{ fontSize: 12 }}
+                />
+
                 <ReferenceLine
                   y={OVERHEAT_THRESHOLD}
                   stroke="red"

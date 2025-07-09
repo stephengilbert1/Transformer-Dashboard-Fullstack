@@ -1,7 +1,7 @@
 // src/hooks/useTransformers.ts
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
-import { TransformerSummary, Transformer, TIME_RANGES } from "@/src/types/index";
+import { TransformerSummary, Transformer, TIME_RANGES } from "@/src/types";
 
 
 
@@ -11,32 +11,33 @@ export function useTransformers(timeRange: keyof typeof TIME_RANGES) {
   const [loading, setLoading] = useState<boolean>(true);
 
 const fetchAllSummaries = async () => {
-    setLoading(true);
+  setLoading(true);
 
-    const { data, error } = await supabase.rpc("get_transformer_summaries");
-    console.log("Transformer summaries:", data);
+  const { data, error } = await supabase.rpc("get_transformer_24hr_averages");
 
-    if (error) {
-      console.error("Error fetching summaries:", error);
-      setLoading(false);
-      return;
-    }
-
-    setTransformers(
-  data.map((t: any) => ({
-    id: t.id,
-    type: t.type,
-    kVA: t.kva,
-    mfgDate: t.mfgdate,
-    latestTemp: t.latesttemp,
-  }))
-);
-
-    if (!selectedId && data.length > 0) {
-      setSelectedId(data[0].id);
-    }
+  if (error || !data) {
+    console.error("Error fetching summaries:", error);
     setLoading(false);
-  };
+    return;
+  }
+
+  setTransformers(
+    data.map((t: any) => ({
+      id: t.id,
+      type: t.type,
+      kVA: t.kVA,
+      mfgDate: t.mfgDate,
+      avgTemp: t.avg_temp_24hr,
+    }))
+  );
+
+  if (!selectedId && data.length > 0) {
+    setSelectedId(data[0].id);
+  }
+
+  setLoading(false);
+};
+
 
 
 

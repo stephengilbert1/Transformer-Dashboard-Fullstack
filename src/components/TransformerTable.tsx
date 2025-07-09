@@ -2,7 +2,7 @@
 
 // src/components/TransformerTable.tsx
 import React from "react";
-import { TransformerSummary, SortableKey } from "@/src/types";
+import { TransformerSummary, SortableKey, OVERHEAT_THRESHOLD } from "@/src/types";
 
 type Props = {
   transformers: TransformerSummary[];
@@ -15,14 +15,12 @@ type Props = {
   setSearchQuery: (s: string) => void;
 };
 
-const OVERHEAT_THRESHOLD = 110;
-
 const HEADER_LABELS: Record<string, string> = {
   id: "ID",
   type: "Type",
   kVA: "kVA",
   mfgDate: "Mfg. Date",
-  tempC: "Current Temp (°C)",
+  tempC: "24hr Avg (°C)",
   status: "Status",
 };
 
@@ -41,7 +39,7 @@ export function TransformerTable({
   );
 
   return (
-    <>
+    <div className="flex flex-col flex-1 overflow-auto">
       <input
         type="text"
         placeholder="Search by ID"
@@ -49,26 +47,55 @@ export function TransformerTable({
         onChange={(e) => setSearchQuery(e.target.value)}
         className="border rounded px-2 py-1 mb-4 w-full max-w-sm"
       />
-      <div className="max-h-[400px] overflow-y-auto border rounded shadow-sm">
-        <table className="min-w-full divide-y divide-gray-200 text-sm">
-          <thead className="sticky top-0 bg-white z-10">
+
+      {/* Scrollable table wrapper */}
+      <div className="flex-1 overflow-y-auto border rounded shadow-sm">
+        <table className="w-full table-fixed text-xs sm:text-sm">
+          <thead className="sticky top-0 bg-transparent z-10">
             <tr>
-              {["id", "type", "kVA", "mfgDate", "tempC", "status"].map((key) => (
-                <th
-                  key={key}
-                  className="px-4 py-2 cursor-pointer select-none"
-                  onClick={() => onSort(key as SortableKey)}
-                >
-                  {HEADER_LABELS[key]} {sortKey === key ? (sortOrder === "asc" ? "▲" : "▼") : ""}
-                </th>
-              ))}
+              <th
+                className="w-1/6 px-2 py-1 sm:px-4 sm:py-2 cursor-pointer select-none"
+                onClick={() => onSort("id")}
+              >
+                {HEADER_LABELS.id} {sortKey === "id" ? (sortOrder === "asc" ? "▲" : "▼") : ""}
+              </th>
+              <th
+                className="w-1/6 px-2 py-1 sm:px-4 sm:py-2 cursor-pointer select-none"
+                onClick={() => onSort("type")}
+              >
+                {HEADER_LABELS.type} {sortKey === "type" ? (sortOrder === "asc" ? "▲" : "▼") : ""}
+              </th>
+              <th
+                className="w-1/12 px-2 py-1 sm:px-4 sm:py-2 cursor-pointer select-none"
+                onClick={() => onSort("kVA")}
+              >
+                {HEADER_LABELS.kVA} {sortKey === "kVA" ? (sortOrder === "asc" ? "▲" : "▼") : ""}
+              </th>
+              <th
+                className="w-1/6 px-2 py-1 sm:px-4 sm:py-2 cursor-pointer select-none"
+                onClick={() => onSort("mfgDate")}
+              >
+                {HEADER_LABELS.mfgDate}{" "}
+                {sortKey === "mfgDate" ? (sortOrder === "asc" ? "▲" : "▼") : ""}
+              </th>
+              <th
+                className="w-1/6 px-2 py-1 sm:px-4 sm:py-2 cursor-pointer select-none"
+                onClick={() => onSort("tempC")}
+              >
+                {HEADER_LABELS.tempC} {sortKey === "tempC" ? (sortOrder === "asc" ? "▲" : "▼") : ""}
+              </th>
+              <th
+                className="w-1/6 px-2 py-1 sm:px-4 sm:py-2 cursor-pointer select-none"
+                onClick={() => onSort("status")}
+              >
+                {HEADER_LABELS.status}{" "}
+                {sortKey === "status" ? (sortOrder === "asc" ? "▲" : "▼") : ""}
+              </th>
             </tr>
           </thead>
           <tbody>
             {filtered.map((t) => {
               const isSelected = selectedId === t.id;
-              const latestTemp = t.latestTemp ?? null; // ✅ Use precomputed latestTemp
-
               return (
                 <tr
                   key={t.id}
@@ -77,19 +104,19 @@ export function TransformerTable({
                     isSelected ? "bg-blue-100 border-l-4 border-blue-600" : ""
                   }`}
                 >
-                  <td className={`p-2 font-mono ${isSelected ? "font-bold" : ""}`}>{t.id}</td>
-                  <td className="p-2">{t.type}</td>
-                  <td className="p-2">{t.kVA}</td>
-                  <td className="p-2">{t.mfgDate}</td>
-
-                  {/* ✅ Current Temp column now uses latestTemp */}
-                  <td className="text-center">
-                    {latestTemp !== null ? latestTemp.toFixed(1) : "—"}
+                  <td
+                    className={`p-2 font-mono truncate whitespace-normal ${isSelected ? "font-bold" : ""}`}
+                  >
+                    {t.id}
                   </td>
-
-                  {/* ✅ Status column also uses latestTemp */}
+                  <td className="p-2 truncate whitespace-normal">{t.type}</td>
+                  <td className="p-2 truncate whitespace-normal">{t.kVA}</td>
+                  <td className="p-2 truncate whitespace-normal">{t.mfgDate}</td>
+                  <td className="p-2 text-center truncate whitespace-normal">
+                    {typeof t.avgTemp === "number" ? t.avgTemp.toFixed(1) : "—"}
+                  </td>
                   <td className="p-2">
-                    {latestTemp !== null && latestTemp > OVERHEAT_THRESHOLD ? (
+                    {typeof t.avgTemp === "number" && t.avgTemp > OVERHEAT_THRESHOLD ? (
                       <span className="text-red-700 bg-red-100 px-2 py-1 rounded-full text-xs font-semibold">
                         Overheating
                       </span>
@@ -105,6 +132,6 @@ export function TransformerTable({
           </tbody>
         </table>
       </div>
-    </>
+    </div>
   );
 }
