@@ -50,8 +50,8 @@ export function TransformerTable({
 
       {/* Scrollable table wrapper */}
       <div className="flex-1 overflow-y-auto border rounded shadow-sm">
-        <table className="w-full table-fixed text-xs sm:text-sm">
-          <thead className="sticky top-0 bg-transparent z-10">
+        <table className="w-full text-xs sm:text-sm">
+          <thead className="sticky top-0 z-10" style={{ backgroundColor: "var(--background)" }}>
             <tr>
               <th
                 className="w-1/6 px-2 py-1 sm:px-4 sm:py-2 cursor-pointer select-none"
