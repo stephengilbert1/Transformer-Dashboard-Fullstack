@@ -5,7 +5,7 @@ import { TransformerDashboard } from "@/src/components/TransformerDashboard";
 
 export default function HomePage() {
   return (
-    <main className="min-h-screen p-6 w-full">
+    <main className="flex-1 p-6 w-full overflow-hidden">
       <TransformerDashboard />
     </main>
   );

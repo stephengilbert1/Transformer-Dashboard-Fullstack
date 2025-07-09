@@ -125,8 +125,8 @@ export function TransformerDashboard() {
   const history = selectedTransformer?.temperatureHistory ?? [];
 
   return (
-    <main className="min-h-screen h-screen flex flex-col px-6 py-8 w-full">
-      <h1 className="text-2xl font-bold mb-6 text-gray-800">Transformer Dashboard</h1>
+    <main className="flex flex-col px-6 pt-4 pb-2 w-full overflow-hidden">
+      <h1 className="text-2xl font-bold mb-4 text-gray-800">Transformer Dashboard</h1>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 flex-1 min-h-[500px]">
         {/* LEFT: Table */}
         <div className="flex flex-col flex-1 overflow-auto min-h-[300px]">
