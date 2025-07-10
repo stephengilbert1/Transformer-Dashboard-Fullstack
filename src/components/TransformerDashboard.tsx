@@ -129,7 +129,7 @@ export function TransformerDashboard() {
       <h1 className="text-2xl font-bold mb-4 text-gray-800">Transformer Dashboard</h1>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 flex-1 min-h-[500px]">
         {/* LEFT: Table */}
-        <div className="flex flex-col flex-1 overflow-auto min-h-[300px]">
+        <div className="flex flex-col flex-1 overflow-auto min-h-[300px] bg-[#f5f5f5] rounded-lg p-4 shadow-sm">
           <TransformerTable
             transformers={sortedTransformers}
             selectedId={selectedId}
@@ -147,48 +147,46 @@ export function TransformerDashboard() {
           <div className="flex flex-col flex-1">
             {/* Top half: dials centered */}
 
-            <div className="flex flex-1 items-center justify-center">
-              {history.length > 0 && (
-                <div className="flex justify-between w-full max-w-2xl mx-auto px-4">
-                  <TemperatureDial
-                    label="Current Temp."
-                    value={
-                      history
-                        .slice()
-                        .reverse()
-                        .find((entry) => new Date(entry.timestamp).getTime() <= Date.now())
-                        ?.tempC ?? null
-                    }
-                  />
-                  <TemperatureDial label="24hr Peak" value={calculatePeak(history)} />
+            {history.length > 0 ? (
+              <div className="w-full max-w-2xl mx-auto px-4">
+                <div className="flex gap-6 mb-4">
+                  <div className="flex-1 bg-[#f5f5f5] rounded-lg shadow-sm p-4 flex items-center justify-center">
+                    <TemperatureDial
+                      label="Current Temp."
+                      value={
+                        history
+                          .slice()
+                          .reverse()
+                          .find((entry) => new Date(entry.timestamp).getTime() <= Date.now())
+                          ?.tempC ?? null
+                      }
+                    />
+                  </div>
+                  <div className="flex-1 bg-[#f5f5f5] rounded-lg shadow-sm p-4 flex items-center justify-center">
+                    <TemperatureDial label="24hr Peak" value={calculatePeak(history)} />
+                  </div>
                 </div>
-              )}
-            </div>
 
-            <div className="flex-none">
-              {selectedTransformer && preparedData.data.length > 0 ? (
-                <>
+                <div className="bg-[#f5f5f5] rounded-lg p-4 shadow-sm">
                   <TemperatureChart
-                    transformerId={selectedTransformer.id}
+                    transformerId={selectedTransformer?.id ?? ""}
                     data={preparedData.data}
                     chartStart={preparedData.chartStart}
                     chartEnd={preparedData.chartEnd}
                     timeRange={timeRange}
                   />
-                  <div className="flex-none">
-                    <div className="flex justify-center gap-4 ">
-                      <TimeRangeSelector
-                        value={timeRange}
-                        options={Object.keys(TIME_RANGES)}
-                        onChange={(val) => setTimeRange(val as keyof typeof TIME_RANGES)}
-                      />
-                    </div>
+                  <div className="mt-4 flex justify-center">
+                    <TimeRangeSelector
+                      value={timeRange}
+                      options={Object.keys(TIME_RANGES)}
+                      onChange={(val) => setTimeRange(val as keyof typeof TIME_RANGES)}
+                    />
                   </div>
-                </>
-              ) : (
-                <p className="text-sm text-gray-500 mt-4">No data for the selected time range.</p>
-              )}
-            </div>
+                </div>
+              </div>
+            ) : (
+              <p className="text-sm text-gray-500 mt-4">No data for the selected time range.</p>
+            )}
           </div>
         </div>
       </div>
