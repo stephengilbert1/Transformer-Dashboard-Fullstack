@@ -1,6 +1,6 @@
 "use client";
 
-// src/components/TransformerTable.tsx
+// src/components/TransformerTable/index.tsx
 import React from "react";
 import { TransformerSummary, SortableKey, OVERHEAT_THRESHOLD } from "@/src/types";
 

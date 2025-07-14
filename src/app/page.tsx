@@ -1,7 +1,7 @@
 // page.tsx
 "use client";
 
-import { TransformerDashboard } from "@/src/components/TransformerDashboard";
+import { TransformerDashboard } from "@/src/components/TransformerDashboard/TransformerDashboard";
 
 export default function HomePage() {
   return (
