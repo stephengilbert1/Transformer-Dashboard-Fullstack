@@ -60,7 +60,7 @@ export default function TransformerDetailPanel({
   const currentTemp = history.at(-1)?.tempC ?? null;
 
   return (
-    <div className="w-full max-w-2xl mx-auto px-4">
+    <div className="w-full mx-auto px-4">
       {/* Dials */}
       <TemperatureSummaryDials history={history} />
       {/* Chart */}{" "}

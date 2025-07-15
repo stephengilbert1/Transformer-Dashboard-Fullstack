@@ -5,7 +5,7 @@ import { TransformerTable } from "@/src/components/TransformerTable";
 import TransformerDetailPanel from "@/src/components/TransformerDashboard/TransformerDetailPanel";
 import { useTransformers } from "@/src/hooks/useTransformers";
 import { sortAndFilterTransformers } from "@/src/utils/sortAndFilterTransformers";
-import { OVERHEAT_THRESHOLD, Transformer, SortableKey, TIME_RANGES } from "@/src/types/index";
+import { Transformer, SortableKey, TIME_RANGES } from "@/src/types/index";
 
 export function TransformerDashboard() {
   const [selectedTransformer, setSelectedTransformer] = useState<Transformer | null>(null);

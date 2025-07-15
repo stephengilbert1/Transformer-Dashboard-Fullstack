@@ -16,11 +16,11 @@ export default function TemperatureSummaryDials({ history }: Props) {
       .find((entry) => new Date(entry.timestamp).getTime() <= Date.now())?.tempC ?? null;
 
   return (
-    <div className="flex gap-6 mb-4">
-      <div className="flex-1 bg-[#f5f5f5] rounded-lg shadow-sm p-4 flex items-center justify-center">
+    <div className="flex flex-col items-center gap-4 sm:flex-row sm:justify-center sm:gap-6 mb-4">
+      <div className="w-full max-w-2x bg-[#f5f5f5] rounded-lg shadow-sm p-4 flex items-center justify-center">
         <TemperatureDial label="Current Temp." value={currentTemp} />
       </div>
-      <div className="flex-1 bg-[#f5f5f5] rounded-lg shadow-sm p-4 flex items-center justify-center">
+      <div className="w-full max-w-2x bg-[#f5f5f5] rounded-lg shadow-sm p-4 flex items-center justify-center">
         <TemperatureDial label="24hr Peak" value={calculatePeak(history)} />
       </div>
     </div>
