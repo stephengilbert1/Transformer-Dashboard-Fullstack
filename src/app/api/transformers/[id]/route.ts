@@ -1,16 +1,19 @@
-import { NextResponse } from "next/server";
+// src/app/api/transformers/[id]/route.ts
+import { NextResponse, NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 
-export async function GET(
-  _req: Request,
-  { params }: { params: { id: string } }
-) {
-  const id = params.id;
+export async function GET(request: NextRequest) {
+  // Extract transformer ID from the pathname
+  const id = request.nextUrl.pathname.split("/").pop();
+
+  if (!id) {
+    return NextResponse.json({ error: "Missing transformer ID" }, { status: 400 });
+  }
 
   try {
     const transformer = await prisma.transformers.findUnique({
       where: { id },
-      include: { temperature_readings: true }, 
+      include: { temperature_readings: true },
     });
 
     if (!transformer) {
