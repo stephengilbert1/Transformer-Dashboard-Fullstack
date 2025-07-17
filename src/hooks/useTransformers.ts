@@ -3,8 +3,6 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { TransformerSummary, Transformer, TIME_RANGES } from "@/src/types";
 
-
-
 export function useTransformers(timeRange: keyof typeof TIME_RANGES) {
   const [transformers, setTransformers] = useState<TransformerSummary[]>([]);
   const [selectedId, setSelectedId] = useState<string>("");
@@ -37,9 +35,6 @@ const fetchAllSummaries = async () => {
 
   setLoading(false);
 };
-
-
-
 
  const fetchTransformerWithReadings = async (
   transformerId: string,

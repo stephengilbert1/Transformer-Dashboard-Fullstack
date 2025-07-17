@@ -3,7 +3,7 @@ import { createClient } from "@supabase/supabase-js";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
 export async function GET() {
@@ -25,29 +25,37 @@ export async function GET() {
     const day = now.getUTCDate();
 
     const startOfDayUTC = new Date(Date.UTC(year, month, day, 0, 0, 0));
+    const endOfDayUTC = new Date(Date.UTC(year, month, day + 1, 0, 0, 0));
 
+    // 🚨 Delete existing readings for today
+    const { error: deleteErr } = await supabase
+      .from("temperature_readings")
+      .delete()
+      .gte("timestamp", startOfDayUTC.toISOString())
+      .lt("timestamp", endOfDayUTC.toISOString());
 
+    if (deleteErr) {
+      console.error("Failed to delete existing readings:", deleteErr.message);
+      return NextResponse.json({ error: "Failed to clean up old readings" }, { status: 500 });
+    }
 
+    // Generate new readings
     for (const tf of transformers) {
-  
+      for (let i = 0; i < 24; i++) {
+        const timestamp = new Date(startOfDayUTC.getTime() + i * 60 * 60 * 1000);
+        const hour = timestamp.getUTCHours();
+        const angle = ((2 * Math.PI) / 24) * (hour - 17);
+        const sin = (Math.sin(angle) + 1) / 2;
+        const base = 50 + Math.random() * 20;
+        const tempC = base + 40 * sin + (Math.random() * 2 - 1) * 1.5;
 
-
-  for (let i = 0; i < 24; i++) {
-    const timestamp = new Date(startOfDayUTC.getTime() + i * 60 * 60 * 1000);
-    const hour = timestamp.getUTCHours();
-    const angle = ((2 * Math.PI) / 24) * (hour - 17);
-    const sin = (Math.sin(angle) + 1) / 2;
-    const base = 50 + Math.random() * 20;
-    const tempC = base + 40 * sin + (Math.random() * 2 - 1) * 1.5;
-
-    newReadings.push({
-      transformer_id: tf.id,
-      timestamp: timestamp.toISOString(),
-      tempC: Number(tempC.toFixed(2)),
-    });
-  }
-}
-
+        newReadings.push({
+          transformer_id: tf.id,
+          timestamp: timestamp.toISOString(),
+          tempC: Number(tempC.toFixed(2)),
+        });
+      }
+    }
 
     if (newReadings.length === 0) {
       return NextResponse.json({ message: "No readings generated" }, { status: 200 });
@@ -58,6 +66,7 @@ export async function GET() {
       .insert(newReadings);
 
     if (insertErr) {
+      console.error("Insert failed:", insertErr.message);
       return NextResponse.json({ error: insertErr.message }, { status: 500 });
     }
 

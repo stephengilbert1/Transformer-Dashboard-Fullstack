@@ -8,7 +8,7 @@ type Transformer = {
   type: string;
   kVA: number;
   mfgDate: string;
-  temperatureHistory: { timestamp: string; tempC: number }[];
+  temperature_readings: { timestamp: string; tempC: number }[];
 };
 
 export default function TransformerPage() {
@@ -40,11 +40,11 @@ export default function TransformerPage() {
 
       <h2 className="mt-4 font-semibold">Temperature History</h2>
       <ul className="list-disc ml-6">
-        {transformer.temperatureHistory.map((t) => (
+        {transformer.temperature_readings?.map((t) => (
           <li key={t.timestamp}>
             {new Date(t.timestamp).toLocaleTimeString()}: {t.tempC} °C
           </li>
-        ))}
+        )) ?? <li>No temperature data available</li>}
       </ul>
     </div>
   );

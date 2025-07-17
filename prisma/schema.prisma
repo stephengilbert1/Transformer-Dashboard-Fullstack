@@ -1,0 +1,39 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model temperature_readings {
+  id             String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  transformer_id String
+  tempC          Float
+  timestamp      DateTime?    @default(now()) @db.Timestamptz(6)
+  transformers   transformers @relation(fields: [transformer_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([transformer_id, timestamp])
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model test_messages {
+  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  content    String
+  created_at DateTime? @default(now()) @db.Timestamptz(6)
+}
+
+/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
+model transformers {
+  id                   String                 @id
+  type                 String?
+  mfgDate              String?
+  created_at           DateTime?              @default(now()) @db.Timestamptz(6)
+  kVA                  Float?
+  temperatureHistory   Json?                  @db.Json
+  is_active            Boolean?               @default(true)
+  temperature_readings temperature_readings[]
+}
