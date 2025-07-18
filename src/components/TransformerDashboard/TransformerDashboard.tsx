@@ -1,18 +1,14 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
 import { TransformerTable } from "@/src/components/TransformerTable";
 import TransformerDetailPanel from "@/src/components/TransformerDashboard/TransformerDetailPanel";
 import { useTransformers } from "@/src/hooks/useTransformers";
-import { sortAndFilterTransformers } from "@/src/utils/sortAndFilterTransformers";
-import { Transformer, SortableKey, TIME_RANGES } from "@/src/types/index";
+import { Transformer, TIME_RANGES } from "@/src/types/index";
 import RecordInspectionForm from "@/src/components/RecordInspectionForm";
 
 export function TransformerDashboard() {
   const [selectedTransformer, setSelectedTransformer] = useState<Transformer | null>(null);
-  const [sortKey, setSortKey] = useState<SortableKey>("id");
-  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
-  const [searchQuery, setSearchQuery] = useState("");
   const [timeRange, setTimeRange] = useState<keyof typeof TIME_RANGES>("1w");
 
   const { transformers, selectedId, setSelectedId, fetchTransformerWithReadings, loading } =
@@ -35,22 +31,10 @@ export function TransformerDashboard() {
         const transformer = await fetchTransformerWithReadings(selectedId, TIME_RANGES[timeRange]);
         if (transformer) setSelectedTransformer(transformer);
       }
-    }, 60_000); // refresh every 60 seconds
+    }, 60_000);
 
     return () => clearInterval(interval);
   }, [selectedId, timeRange]);
-
-  const handleSort = (key: SortableKey) => {
-    if (sortKey === key) setSortOrder(sortOrder === "asc" ? "desc" : "asc");
-    else {
-      setSortKey(key);
-      setSortOrder("asc");
-    }
-  };
-
-  const sortedTransformers = useMemo(() => {
-    return sortAndFilterTransformers(transformers, sortKey, sortOrder, searchQuery);
-  }, [transformers, sortKey, sortOrder, searchQuery]);
 
   return (
     <main className="flex flex-col px-6 pt-4 pb-2 w-full overflow-hidden">
@@ -60,16 +44,10 @@ export function TransformerDashboard() {
         <div className="flex flex-col flex-1 overflow-auto min-h-[300px] bg-[#f5f5f5] rounded-lg p-4 shadow-sm">
           <div className="w-full max-w-full">
             <TransformerTable
-              transformers={sortedTransformers}
+              transformers={transformers}
               selectedId={selectedId}
               onSelect={setSelectedId}
-              sortKey={sortKey}
-              sortOrder={sortOrder}
-              onSort={handleSort}
-              searchQuery={searchQuery}
-              setSearchQuery={setSearchQuery}
             />
-
             {selectedId && (
               <div className="mt-6">
                 <RecordInspectionForm transformerId={selectedId} />
