@@ -20,13 +20,6 @@ model temperature_readings {
 }
 
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
-model test_messages {
-  id         String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  content    String
-  created_at DateTime? @default(now()) @db.Timestamptz(6)
-}
-
-/// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model transformers {
   id                   String                 @id
   type                 String?
@@ -35,5 +28,20 @@ model transformers {
   kVA                  Float?
   temperatureHistory   Json?                  @db.Json
   is_active            Boolean?               @default(true)
+  location             Json?                  @db.Json
+  inspections          inspections[]
   temperature_readings temperature_readings[]
+
+  @@map("transformers")
+}
+
+model inspections {
+  id              String        @id @default(dbgenerated("extensions.uuid_generate_v4()")) @db.Uuid
+  transformer_id  String?
+  inspection_date DateTime      @db.Date
+  inspector_name  String
+  condition       String
+  notes           String?
+  created_at      DateTime?     @default(now()) @db.Timestamp(6)
+  transformers    transformers? @relation(fields: [transformer_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 }

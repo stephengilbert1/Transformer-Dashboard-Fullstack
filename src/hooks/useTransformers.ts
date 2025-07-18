@@ -11,7 +11,7 @@ export function useTransformers(timeRange: keyof typeof TIME_RANGES) {
 const fetchAllSummaries = async () => {
   setLoading(true);
 
-  const { data, error } = await supabase.rpc("get_transformer_24hr_averages");
+  const { data, error } = await supabase.rpc("get_transformer_summaries");
 
   if (error || !data) {
     console.error("Error fetching summaries:", error);
@@ -26,6 +26,7 @@ const fetchAllSummaries = async () => {
       kVA: t.kVA,
       mfgDate: t.mfgDate,
       avgTemp: t.avg_temp_24hr,
+      location: t.location,
     }))
   );
 
@@ -57,10 +58,7 @@ const fetchAllSummaries = async () => {
     .gte("timestamp", startTime.toISOString())
     .lte("timestamp", endTime.toISOString());
     
-
   console.timeEnd(`Fetch ${transformerId}`);
-
-
 
     if (transformerError || readingsError || !readings) {
       console.error("Error fetching transformer or readings:", transformerError, readingsError);

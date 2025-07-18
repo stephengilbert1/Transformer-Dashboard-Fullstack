@@ -21,7 +21,7 @@ export function Sidebar() {
           Dashboard
         </Link>
         <Link href="/map" className={linkClasses("/map")}>
-          Map (Coming soon)
+          Map
         </Link>
         <Link href="/reports" className={linkClasses("/reports")}>
           Reports (Coming soon)

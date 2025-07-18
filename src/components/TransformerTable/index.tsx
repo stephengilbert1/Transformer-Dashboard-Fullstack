@@ -1,21 +1,15 @@
 "use client";
 
-// src/components/TransformerTable/index.tsx
-import React from "react";
+import React, { useState, useMemo } from "react";
 import { TransformerSummary, SortableKey, OVERHEAT_THRESHOLD } from "@/src/types";
 
 type Props = {
   transformers: TransformerSummary[];
   selectedId: string;
   onSelect: (id: string) => void;
-  sortKey: SortableKey | null;
-  sortOrder: "asc" | "desc";
-  onSort: (key: SortableKey) => void;
-  searchQuery: string;
-  setSearchQuery: (s: string) => void;
 };
 
-const HEADER_LABELS: Record<string, string> = {
+const HEADER_LABELS: Record<SortableKey, string> = {
   id: "ID",
   type: "Type",
   kVA: "kVA",
@@ -24,19 +18,39 @@ const HEADER_LABELS: Record<string, string> = {
   status: "Status",
 };
 
-export function TransformerTable({
-  transformers,
-  selectedId,
-  onSelect,
-  sortKey,
-  sortOrder,
-  onSort,
-  searchQuery,
-  setSearchQuery,
-}: Props) {
-  const filtered = transformers.filter((t) =>
-    t.id.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+export function TransformerTable({ transformers, selectedId, onSelect }: Props) {
+  const [sortKey, setSortKey] = useState<SortableKey>("id");
+  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc");
+  const [searchQuery, setSearchQuery] = useState("");
+
+  const handleSort = (key: SortableKey) => {
+    if (key === sortKey) {
+      setSortOrder((prev) => (prev === "asc" ? "desc" : "asc"));
+    } else {
+      setSortKey(key);
+      setSortOrder("asc");
+    }
+  };
+
+  const filtered = useMemo(() => {
+    return transformers
+      .filter((t) => t.id.toLowerCase().includes(searchQuery.toLowerCase()))
+      .sort((a, b) => {
+        const aVal = a[sortKey as keyof TransformerSummary];
+        const bVal = b[sortKey as keyof TransformerSummary];
+
+        if (aVal == null) return 1;
+        if (bVal == null) return -1;
+
+        if (typeof aVal === "number" && typeof bVal === "number") {
+          return sortOrder === "asc" ? aVal - bVal : bVal - aVal;
+        }
+
+        return sortOrder === "asc"
+          ? String(aVal).localeCompare(String(bVal))
+          : String(bVal).localeCompare(String(aVal));
+      });
+  }, [transformers, sortKey, sortOrder, searchQuery]);
 
   return (
     <div className="flex flex-col flex-1 overflow-auto">
@@ -48,49 +62,19 @@ export function TransformerTable({
         className="border rounded px-2 py-1 mb-4 w-full max-w-sm"
       />
 
-      {/* Scrollable table wrapper */}
       <div className="flex-1 overflow-y-auto border rounded shadow-sm">
         <table className="w-full text-xs sm:text-sm">
           <thead className="sticky top-0 z-10" style={{ backgroundColor: "var(--background)" }}>
             <tr>
-              <th
-                className="w-1/6 px-2 py-1 sm:px-4 sm:py-2 cursor-pointer select-none"
-                onClick={() => onSort("id")}
-              >
-                {HEADER_LABELS.id} {sortKey === "id" ? (sortOrder === "asc" ? "▲" : "▼") : ""}
-              </th>
-              <th
-                className="w-1/6 px-2 py-1 sm:px-4 sm:py-2 cursor-pointer select-none"
-                onClick={() => onSort("type")}
-              >
-                {HEADER_LABELS.type} {sortKey === "type" ? (sortOrder === "asc" ? "▲" : "▼") : ""}
-              </th>
-              <th
-                className="w-1/12 px-2 py-1 sm:px-4 sm:py-2 cursor-pointer select-none"
-                onClick={() => onSort("kVA")}
-              >
-                {HEADER_LABELS.kVA} {sortKey === "kVA" ? (sortOrder === "asc" ? "▲" : "▼") : ""}
-              </th>
-              <th
-                className="w-1/6 px-2 py-1 sm:px-4 sm:py-2 cursor-pointer select-none"
-                onClick={() => onSort("mfgDate")}
-              >
-                {HEADER_LABELS.mfgDate}{" "}
-                {sortKey === "mfgDate" ? (sortOrder === "asc" ? "▲" : "▼") : ""}
-              </th>
-              <th
-                className="w-1/6 px-2 py-1 sm:px-4 sm:py-2 cursor-pointer select-none"
-                onClick={() => onSort("tempC")}
-              >
-                {HEADER_LABELS.tempC} {sortKey === "tempC" ? (sortOrder === "asc" ? "▲" : "▼") : ""}
-              </th>
-              <th
-                className="w-1/6 px-2 py-1 sm:px-4 sm:py-2 cursor-pointer select-none"
-                onClick={() => onSort("status")}
-              >
-                {HEADER_LABELS.status}{" "}
-                {sortKey === "status" ? (sortOrder === "asc" ? "▲" : "▼") : ""}
-              </th>
+              {(Object.keys(HEADER_LABELS) as SortableKey[]).map((key) => (
+                <th
+                  key={key}
+                  className="px-2 py-1 sm:px-4 sm:py-2 cursor-pointer select-none"
+                  onClick={() => handleSort(key)}
+                >
+                  {HEADER_LABELS[key]} {sortKey === key ? (sortOrder === "asc" ? "▲" : "▼") : ""}
+                </th>
+              ))}
             </tr>
           </thead>
           <tbody>
@@ -105,7 +89,9 @@ export function TransformerTable({
                   }`}
                 >
                   <td
-                    className={`p-2 font-mono truncate whitespace-normal ${isSelected ? "font-bold" : ""}`}
+                    className={`p-2 font-mono truncate whitespace-normal ${
+                      isSelected ? "font-bold" : ""
+                    }`}
                   >
                     {t.id}
                   </td>

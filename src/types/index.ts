@@ -14,6 +14,7 @@ export type TransformerSummary = {
   kVA: number;
   mfgDate: string; // or Date if you're converting
   avgTemp?: number;
+  location: { lat: number; lng: number };
 };
 
 export type Transformer = TransformerSummary & {
