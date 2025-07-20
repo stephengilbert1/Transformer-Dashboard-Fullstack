@@ -5,6 +5,7 @@ import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
 import type { LatLngExpression } from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { TransformerSummary } from "@/src/types";
+import { ZoomControl } from "react-leaflet";
 
 type Props = {
   transformers: TransformerSummary[];
@@ -17,9 +18,17 @@ type Props = {
 
 function Recenter({ latlng }: { latlng: LatLngExpression }) {
   const map = useMap();
+
   useEffect(() => {
-    map.setView(latlng, map.getZoom());
-  }, [latlng]);
+    const offsetLatLng = (map: L.Map, latlng: LatLngExpression, yOffsetPx: number) => {
+      const targetPoint = map.project(latlng as L.LatLng).subtract([0, yOffsetPx]);
+      return map.unproject(targetPoint);
+    };
+
+    const newCenter = offsetLatLng(map, latlng, map.getSize().y * 0.25); // 25% height offset
+    map.setView(newCenter, map.getZoom(), { animate: true });
+  }, [latlng, map]);
+
   return null;
 }
 
@@ -62,12 +71,12 @@ export function TransformerMapClient({
     });
 
   return (
-    <MapContainer center={center} zoom={zoom} style={{ height, width: "100%" }}>
+    <MapContainer center={center} zoom={zoom} style={{ height, width: "100%" }} zoomControl={false}>
       <TileLayer
         attribution="Map data © OpenStreetMap contributors"
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
-
+      <ZoomControl position="bottomleft" />
       {transformers
         .filter(
           (t) =>
