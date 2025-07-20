@@ -29,7 +29,7 @@ export function Sidebar() {
 
       {/* Sidebar */}
       <aside
-        className={`fixed lg:static top-0 left-0 z-40 h-full w-64 bg-[#dadada] border-r border-gray-300 p-6 pt-14 transition-transform duration-300 ${
+        className={`lg:static z-40 w-64 bg-[#dadada] border-r border-gray-300 p-6 transition-transform duration-300 ${
           open ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         }`}
       >

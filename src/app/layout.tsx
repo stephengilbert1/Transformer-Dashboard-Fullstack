@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Sidebar } from "@/src/components/layouts/SidebarLayout";
-
+import { TopBar } from "@/src/components/layouts/TopBar";
 import "leaflet/dist/leaflet.css";
 
 const geistSans = Geist({
@@ -25,9 +25,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
-        <div className="flex h-screen bg-[var(--background)] text-[var(--foreground)]">
+        <TopBar />
+        <div className="flex h-screen overflow-hidden bg-[var(--background)] text-[var(--foreground)]">
           <Sidebar />
-          <main className="flex-1">{children}</main>
+          <main className="flex-1 overflow-y-auto h-full">{children}</main>
         </div>
       </body>
     </html>
