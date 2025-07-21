@@ -38,7 +38,7 @@ export default function RecordInspectionForm({ transformerId }: { transformerId:
   return (
     <form
       onSubmit={handleSubmit}
-      className="bg-white border rounded-lg shadow-sm p-4 space-y-3 text-sm w-full max-w-full"
+      className="w-full max-w-2xl bg-[#f5f5f5] rounded-lg shadow-sm p-4 space-y-3 text-sm"
     >
       <h3 className="font-semibold text-lg text-gray-800 mb-2">
         Inspecting: <span className="font-mono">{transformerId}</span>
@@ -65,7 +65,7 @@ export default function RecordInspectionForm({ transformerId }: { transformerId:
         placeholder="Notes"
         value={notes}
         onChange={(e) => setNotes(e.target.value)}
-        className="input w-full"
+        className="w-full p-2 rounded border border-gray-300 bg-white text-black placeholder-gray-500"
         rows={2}
       />
 
