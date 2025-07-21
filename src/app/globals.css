@@ -5,7 +5,8 @@
 :root {
   --background: #efefef;
   --foreground: #171717;
-  --font-sans: var(--font-outfit);
+  --font-heading: var(--font-outfit);
+  --font-body: var(--font-geist);
 }
 
 /* @media (prefers-color-scheme: dark) {
@@ -15,14 +16,20 @@
   }
 } */
 
-html {
-  height: 100%;
-  background: var(--background);
-}
-
+html,
 body {
+  overflow: hidden;
   height: 100%;
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-outfit), sans-serif;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-family: var(--font-heading), sans-serif;
 }
