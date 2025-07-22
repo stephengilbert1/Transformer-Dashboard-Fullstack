@@ -41,31 +41,31 @@ export function TransformerDashboard() {
       {/* <h1 className="text-2xl font-bold mb-4 text-gray-800">Transformer Dashboard</h1> */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 flex-1 min-h-[500px]">
         {/* LEFT: Table */}
-        <div className="flex flex-col items-center flex-1 overflow-auto min-h-[300px]">
-          <div className="w-full max-w-5xl">
-            <div className="bg-[#f5f5f5] rounded-lg p-4 shadow-sm">
-              <TransformerTable
-                transformers={transformers}
-                selectedId={selectedId}
-                onSelect={setSelectedId}
-              />
-            </div>
-
-            {selectedId && (
-              <div className="mt-4">
-                <RecordInspectionForm transformerId={selectedId} />
-              </div>
-            )}
+        <div className="w-full max-w-5xl space-y-4">
+          <div className="bg-[#f5f5f5] rounded-lg p-4 shadow-sm">
+            <TransformerTable
+              transformers={transformers}
+              selectedId={selectedId}
+              onSelect={setSelectedId}
+            />
           </div>
+
+          {selectedId && (
+            <div className="bg-[#f5f5f5] rounded-lg p-4 shadow-sm">
+              <RecordInspectionForm transformerId={selectedId} />
+            </div>
+          )}
         </div>
 
         {/* RIGHT: Detail Panel */}
-        <div className="flex flex-col flex-1">
-          <TransformerDetailPanel
-            selectedTransformer={selectedTransformer}
-            timeRange={timeRange}
-            setTimeRange={setTimeRange}
-          />
+        <div className="flex flex-col items-center flex-1">
+          <div className="w-full max-w-5xl">
+            <TransformerDetailPanel
+              selectedTransformer={selectedTransformer}
+              timeRange={timeRange}
+              setTimeRange={setTimeRange}
+            />
+          </div>
         </div>
       </div>
     </main>

@@ -36,10 +36,7 @@ export default function RecordInspectionForm({ transformerId }: { transformerId:
   }
 
   return (
-    <form
-      onSubmit={handleSubmit}
-      className="w-full max-w-2xl bg-[#f5f5f5] rounded-lg shadow-sm p-4 space-y-3 text-sm"
-    >
+    <form onSubmit={handleSubmit} className="space-y-4">
       <h3 className="font-semibold text-lg text-gray-800 mb-2">
         Inspecting: <span className="font-mono">{transformerId}</span>
       </h3>

@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 import { useTransformers } from "@/src/hooks/useTransformers";
-import { TransformerMap } from "@/src/components/Map/TransformerMap";
 import { CompactTransformerTable } from "@/src/components/TransformerTable/CompactTransformerTable";
 import { MapPageLayout } from "@/src/components/Map/MapPageLayout";
 import { SortableKey } from "@/src/types";
@@ -24,18 +23,9 @@ export default function MapPage() {
   };
 
   return (
-    <div className="relative w-full h-screen">
-      {/* MAP fills entire area including behind sidebar */}
-      <div className="absolute inset-0 z-0">
-        <TransformerMap
-          transformers={transformers}
-          selectedId={selectedId}
-          onSelect={setSelectedId}
-        />
-      </div>
-
-      {/* FLOATING TABLE PANEL (not full-height) */}
-      <div className="absolute top-20 left-6 z-10 w-[350px] max-h-[85vh] bg-white bg-opacity-90 backdrop-blur-md shadow-xl rounded-xl p-4 overflow-y-auto">
+    <MapPageLayout transformers={transformers} selectedId={selectedId} onSelect={setSelectedId}>
+      {/* Floating panel on top of the map */}
+      <div className="absolute top-6 left-6 z-10 w-[350px] max-h-[85vh] bg-white bg-opacity-90 backdrop-blur-md shadow-xl rounded-xl p-4 overflow-y-auto">
         <CompactTransformerTable
           transformers={transformers}
           selectedId={selectedId}
@@ -47,6 +37,6 @@ export default function MapPage() {
           setSearchQuery={setSearchQuery}
         />
       </div>
-    </div>
+    </MapPageLayout>
   );
 }

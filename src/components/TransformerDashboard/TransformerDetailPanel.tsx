@@ -3,14 +3,11 @@
 import { useMemo } from "react";
 import { TemperatureChart } from "@/src/components/TemperatureChart";
 import { TimeRangeSelector } from "@/src/components/TimeRangeSelector";
-import TemperatureSummaryDials from "@/src/components/TransformerDashboard/TemperatureSummaryDials";
+import DialCurrentTemp from "@/src/components/TransformerDashboard/DialCurrentTemp";
+import DialPeakTemp from "@/src/components/TransformerDashboard/DialPeakTemp";
+
 import { TIME_RANGES, Transformer, TemperatureReading } from "@/src/types/index";
 
-/**
- * Shows the two temperature dials (current + 24 h peak) and the chart + selector
- * for the currently‑selected transformer. Designed to live in the right‑hand
- * column of the dashboard grid.
- */
 export default function TransformerDetailPanel({
   selectedTransformer,
   timeRange,
@@ -22,11 +19,6 @@ export default function TransformerDetailPanel({
 }) {
   const history: TemperatureReading[] = selectedTransformer?.temperatureHistory ?? [];
 
-  /**
-   * Prepare data for recharts – limit to the requested window, round to the
-   * nearest minute, and always ensure the latest reading is present so the
-   * dial & chart stay in sync.
-   */
   const { prepped, chartStart, chartEnd } = useMemo(() => {
     const end = Date.now();
     const start = end - TIME_RANGES[timeRange] * 24 * 60 * 60 * 1000;
@@ -46,24 +38,26 @@ export default function TransformerDetailPanel({
       filtered = [...filtered, last];
     }
 
-    return {
-      prepped: filtered,
-      chartStart: start,
-      chartEnd: end,
-    };
+    return { prepped: filtered, chartStart: start, chartEnd: end };
   }, [history, timeRange]);
 
   if (!history.length) {
     return <p className="text-sm text-gray-500 mt-4">No data for the selected time range.</p>;
   }
 
-  const currentTemp = history.at(-1)?.tempC ?? null;
-
   return (
-    <div className="w-full mx-auto px-4">
-      {/* Dials */}
-      <TemperatureSummaryDials history={history} />
-      {/* Chart */}{" "}
+    <div className="w-full max-w-5xl mx-auto space-y-4">
+      {/* Dials row */}
+      <div className="flex flex-col lg:flex-row gap-4">
+        <div className="flex-1 bg-[#f5f5f5] rounded-lg p-4 shadow-sm flex items-center justify-center">
+          <DialCurrentTemp history={history} />
+        </div>
+        <div className="flex-1 bg-[#f5f5f5] rounded-lg p-4 shadow-sm flex items-center justify-center">
+          <DialPeakTemp history={history} />
+        </div>
+      </div>
+
+      {/* Chart below */}
       <div className="bg-[#f5f5f5] rounded-lg p-4 shadow-sm">
         <TemperatureChart
           transformerId={selectedTransformer?.id ?? ""}
